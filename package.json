@@ -9,7 +9,7 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "server": "json-server --watch src/db/db.json --port 3001",
-    "pokeserver": "npx ts-node ./src/server/pokeServer.ts"
+    "pokeserver": "node -r ts-node/register src/server/pokeServer.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

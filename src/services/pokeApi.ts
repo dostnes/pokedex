@@ -1,27 +1,64 @@
 import axios from 'axios';
-import { Pokemon } from '../types/pokemon';
 
-const BASE_URL = 'https://pokeapi.co/api/v2';
+// Use the local server URL instead of the public API
+const API_URL = 'http://localhost:3002/api/v2';
 
-export const capitalizeFirstLetter = (string: string) => {
+
+export const capitalizeFirstLetter = (string: string): string => {
     return string.charAt(0).toUpperCase() + string.slice(1);
-};
+  };
 
 export const pokeApi = {
-    getAllPokemon: async (limit: number = 1025, offset: number = 0) => {
-        const response = await axios.get(`${BASE_URL}/pokemon`, {
-            params: { limit, offset }
-        });
-        return response.data;
-    },
+  getAllPokemon: async () => {
+    try {
+      // Try to load from cache first
+      const cachedData = loadFromCache();
+      if (cachedData?.pokemon) {
+        return cachedData.pokemon;
+      }
 
-    getPokemonByName: async (name: string): Promise<Pokemon> => {
-        const response = await axios.get(`${BASE_URL}/pokemon/${name.toLowerCase()}`);
-        return response.data;
-    },
-
-    getPokemonById: async (id: number): Promise<Pokemon> => {
-        const response = await axios.get(`${BASE_URL}/pokemon/${id}`);
-        return response.data;
+      // Fetch from local server
+      const response = await axios.get(`${API_URL}/pokemon?limit=151`);
+      return response.data.results;
+    } catch (error) {
+      console.error('Error fetching Pokemon:', error);
+      throw error;
     }
-}; 
+  },
+
+  getPokemonByName: async (name: string) => {
+    try {
+      // Try to load from cache first
+      const cachedData = loadFromCache();
+      if (cachedData?.pokemonDetails?.[name]) {
+        return cachedData.pokemonDetails[name];
+      }
+
+      // Fetch from local server
+      const response = await axios.get(`${API_URL}/pokemon/${name}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching Pokemon ${name}:`, error);
+      throw error;
+    }
+  }
+};
+
+// Your existing cache functions
+function loadFromCache() {
+  try {
+    const cached = localStorage.getItem('pokemon_cache');
+    return cached ? JSON.parse(cached) : null;
+  } catch (e) {
+    console.error('Error loading from cache:', e);
+    return null;
+  }
+}
+
+function saveToCache(data: any) {
+  try {
+    localStorage.setItem('pokemon_cache', JSON.stringify({ pokemon: data }));
+  } catch (e) {
+    console.error('Error saving to cache:', e);
+  }
+}
