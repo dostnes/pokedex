@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "jsx": "react-jsx",  // Add this line
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],  // Add this line
+    "noEmit": true,  // Add this line
+    "resolveJsonModule": true,  // Add this line
+    "isolatedModules": true  // Add this line
+  },
+  "ts-node": {
+    "transpileOnly": true,
+    "files": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
+}
