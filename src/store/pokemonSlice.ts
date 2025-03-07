@@ -113,13 +113,13 @@ const pokemonSlice = createSlice({
   name: 'pokemon',
   initialState,
   reducers: {
-    addToCollection: (state, action: PayloadAction<Pokemon & Partial<MyPokemon>>) => {
+    addToCollection: (state, action: PayloadAction<Partial<Pokemon> & Partial<MyPokemon>>) => {
       try {
         const collectionId = `${action.payload.id}-${Date.now()}`;
         console.log('Generating collectionId:', collectionId);
         
         const newPokemon: MyPokemon = {
-          ...action.payload,
+          ...action.payload as any,
           collectionId,
           level: action.payload.level || 1,
           nature: action.payload.nature || 'Hardy',
@@ -137,14 +137,12 @@ const pokemonSlice = createSlice({
           caughtFrom: action.payload.caughtFrom || 'Main Series',
           pokeball: action.payload.pokeball || 'Poke Ball',
           gender: action.payload.gender || 'N/A',
-          ability: action.payload.ability || {
-            name: action.payload.abilities[0]?.ability.name || '',
-            isHidden: false
-          },
+          ability: action.payload.ability || 
+        (action.payload.abilities && action.payload.abilities[0]?.ability.name) || '',
           originalTrainer: action.payload.originalTrainer || '',
           trainerId: action.payload.trainerId || '',
           caughtDate: action.payload.caughtDate || new Date().toISOString(),
-          comment: action.payload.comment || ''
+          comments: action.payload.comments || ''
         };
 
         state.myCollection.push(newPokemon);

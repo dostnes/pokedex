@@ -102,14 +102,29 @@ const AddPokemon = () => {
         caughtFrom,
         pokeball,
         gender,
-        ability,
+        ability: ability.name,
         originalTrainer,
         trainerId,
         caughtDate: caughtDate?.toISOString() || dayjs().toISOString(),
-        comment
+        comments: comment
       };
       console.log('Adding Pokemon with collectionId:', collectionId);
-      dispatch(addToCollection(newPokemon));
+      const formattedPokemon = {
+        ...selectedPokemon,
+        ...formData,
+        collectionId,
+        moves: formData.moves.filter(move => move !== ''),
+        location,
+        caughtFrom,
+        pokeball,
+        gender,
+        ability: ability.name,
+        originalTrainer,
+        trainerId, 
+        caughtDate: caughtDate?.toISOString() || dayjs().toISOString(),
+        comments: comment
+      };
+      dispatch(addToCollection(formattedPokemon as any));
       setSelectedPokemon(null);
       setFormData({
         nickname: '',
