@@ -21,13 +21,13 @@ import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
 import InfoIcon from '@mui/icons-material/Info';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import { RootState } from '../store/store';
-import { importCollection } from '../store/pokemonSlice';
+import { RootState, AppDispatch } from '../store/store';
+import { importCollectionAsync } from '../store/pokemonSlice';
 
 const DataManagement = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const myCollection = useSelector((state: RootState) => state.pokemon.myCollection);
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -76,7 +76,6 @@ const DataManagement = () => {
       setSnackbarOpen(true);
     }
   };
-
   const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
     const fileInput = event.target;
     if (fileInput.files && fileInput.files.length > 0) {
@@ -93,8 +92,14 @@ const DataManagement = () => {
             throw new Error('Invalid data format');
           }
           
-          // Dispatch action to import the collection
-          dispatch(importCollection(importedData));
+          console.log('Importing collection:', {
+            size: importedData.length,
+            firstPokemon: importedData[0]?.name,
+            lastPokemon: importedData[importedData.length - 1]?.name
+          });
+          
+        // Use importCollectionAsync instead of importCollection
+        dispatch(importCollectionAsync(importedData));
           
           setSnackbarMessage('Collection imported successfully!');
           setSnackbarSeverity('success');

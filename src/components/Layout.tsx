@@ -76,7 +76,7 @@ const Layout = ({ children }: LayoutProps) => {
                   alignItems: 'center',
                 }}
               >
-                Pokédex
+                Pokémon Collection App
               </Link>
             </Typography>
             
@@ -101,6 +101,9 @@ const Layout = ({ children }: LayoutProps) => {
                   <Link component={RouterLink} to="/tracker" sx={{ textDecoration: 'none' }}>
                     <NavButton>Pokédex Tracker</NavButton>
                   </Link>
+                  <Link component={RouterLink} to="/slideshow" sx={{ textDecoration: 'none' }}>
+      <NavButton>Slideshow</NavButton>
+    </Link>
                 </>
               )}
               
@@ -156,7 +159,7 @@ const Layout = ({ children }: LayoutProps) => {
             color="text.secondary"
             align="center"
           >
-            © {new Date().getFullYear()} Pokédex App - data provided by <a href="https://pokeapi.co/" target="_blank" rel="noopener noreferrer">PokéAPI</a>
+            © {new Date().getFullYear()} Pokémon Collection App by Raz - data provided by <a href="https://pokeapi.co/" target="_blank" rel="noopener noreferrer">PokéAPI</a>
           </Typography>
         </Container>
       </Box>

@@ -12,6 +12,28 @@ export const initializeCollection = createAsyncThunk(
   }
 );
 
+// Import collection thunk that uses IndexedDB
+export const importCollectionAsync = createAsyncThunk(
+  'pokemon/importCollectionAsync',
+  async (collection: MyPokemon[]) => {
+    // Clear existing collection first
+    await collectionDb.clear();
+    
+    // Add each Pokémon to the database
+    for (const pokemon of collection) {
+      await collectionDb.add(pokemon);
+    }
+    
+    console.log('Collection imported and saved to IndexedDB:', {
+      collectionSize: collection.length,
+      firstPokemon: collection[0]?.name,
+      lastPokemon: collection[collection.length - 1]?.name
+    });
+    
+    return collection;
+  }
+);
+
 interface PokemonState {
   allPokemon: {
     results: Pokemon[];
@@ -139,11 +161,12 @@ const pokemonSlice = createSlice({
           originalTrainer: action.payload.originalTrainer || '',
           trainerId: action.payload.trainerId || '',
           caughtDate: action.payload.caughtDate || new Date().toISOString(),
-          comments: action.payload.comments || ''
+          comments: action.payload.comments || '',
+          timestamp: Date.now() // Add timestamp for sorting
         };
 
         state.myCollection.push(newPokemon);
-        // Save to IndexedDB instead of localStorage
+        // Save to IndexedDB
         collectionDb.add(newPokemon);
         console.log('➕ Added Pokémon to collection', {
           name: newPokemon.name,
@@ -161,7 +184,7 @@ const pokemonSlice = createSlice({
         );
         if (index !== -1) {
           state.myCollection[index] = action.payload;
-          // Update in IndexedDB instead of localStorage
+          // Update in IndexedDB
           collectionDb.update(action.payload);
           console.log('📝 Updated Pokémon in collection', {
             name: action.payload.name,
@@ -178,7 +201,7 @@ const pokemonSlice = createSlice({
       try {
         console.log('🧹 Clearing collection...');
         state.myCollection = [];
-        // Clear in IndexedDB instead of localStorage
+        // Clear in IndexedDB
         collectionDb.clear();
         console.log('✅ Collection cleared successfully');
       } catch (error) {
@@ -186,9 +209,13 @@ const pokemonSlice = createSlice({
       }
     },
     importCollection: (state, action: PayloadAction<MyPokemon[]>) => {
+      // This is now just a synchronous action that updates the Redux state
+      // The actual storage operation is handled by the importCollectionAsync thunk
       state.myCollection = action.payload;
-      // Save to local storage
-      localStorage.setItem('myCollection', JSON.stringify(action.payload));
+    },
+    // Add a setCollection action for direct state updates
+    setCollection: (state, action: PayloadAction<MyPokemon[]>) => {
+      state.myCollection = action.payload;
     }
   },
   extraReducers: (builder) => {
@@ -261,7 +288,7 @@ const pokemonSlice = createSlice({
             pokemon => pokemon.collectionId !== action.payload
           );
           
-          // Delete from IndexedDB instead of localStorage
+          // Delete from IndexedDB
           collectionDb.delete(action.payload);
           console.log('✅ Collection updated. New size:', state.myCollection.length);
         } catch (error) {
@@ -273,9 +300,36 @@ const pokemonSlice = createSlice({
         console.log('✅ Collection initialized from IndexedDB', {
           size: action.payload.length
         });
+      })
+      // Add cases for the importCollectionAsync thunk
+      .addCase(importCollectionAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        console.log('⏳ Starting collection import...');
+      })
+      .addCase(importCollectionAsync.fulfilled, (state, action) => {
+        state.loading = false;
+        state.myCollection = action.payload;
+        console.log('✅ Collection import completed', {
+          size: action.payload.length
+        });
+      })
+      .addCase(importCollectionAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to import collection';
+        console.error('❌ Collection import failed', {
+          error: action.error.message
+        });
       });
   }
 });
 
-export const { addToCollection, updatePokemon, clearCollection, importCollection } = pokemonSlice.actions;
+export const { 
+  addToCollection, 
+  updatePokemon, 
+  clearCollection, 
+  importCollection,
+  setCollection 
+} = pokemonSlice.actions;
+
 export default pokemonSlice.reducer;

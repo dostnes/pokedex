@@ -8,6 +8,7 @@ import PokedexTracker from './pages/PokedexTracker';
 import Layout from './components/Layout';
 import { initializeCollection } from './store/pokemonSlice';
 import type { AppDispatch } from './store/store';
+import SlideshowPage from './pages/SlideshowPage';
 
 function App() {
   const dispatch = useDispatch<AppDispatch>();
@@ -24,6 +25,7 @@ function App() {
         <Route path="/add" element={<AddPokemon />} />
         <Route path="/pokemon/:id" element={<PokemonDetails />} />
         <Route path="/tracker" element={<PokedexTracker />} />
+        <Route path="/slideshow" element={<SlideshowPage />} />
       </Routes>
     </Layout>
   );
