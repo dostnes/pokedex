@@ -34,6 +34,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import MaleIcon from '@mui/icons-material/Male';
 import FemaleIcon from '@mui/icons-material/Female';
 import PokeballSelect from '../components/PokeballSelect';
+import EVDistributor from '../components/EVDistributor';
 
 const ITEMS_PER_PAGE = 25;
 const NATURES = [
@@ -607,28 +608,17 @@ const getPokemonImageUrl = (pokemon: Pokemon): string => {
                   </Grid>
 
                   <Grid item xs={12}>
-                    <Typography variant="h6" gutterBottom>EVs</Typography>
-                    <Grid container spacing={2}>
-                      {Object.keys(formData.evs).map((stat) => (
-                        <Grid item xs={6} key={stat}>
-                          <TextField
-                            fullWidth
-                            type="number"
-                            label={capitalizeFirstLetter(stat)}
-                            value={formData.evs[stat as keyof typeof formData.evs]}
-                            onChange={(e) => setFormData({
-                              ...formData,
-                              evs: {
-                                ...formData.evs,
-                                [stat]: Number(e.target.value)
-                              }
-                            })}
-                            inputProps={{ min: 0, max: 252 }}
-                          />
-                        </Grid>
-                      ))}
-                    </Grid>
-                  </Grid>
+  <Typography variant="h6" gutterBottom>EVs</Typography>
+  <EVDistributor
+    evs={formData.evs as any}
+    onChange={(newEVs) => {
+      setFormData({
+        ...formData,
+        evs: newEVs
+      });
+    }}
+  />
+</Grid>
 
                   <Grid item xs={12}>
                     <Typography variant="h6" gutterBottom>Moves</Typography>

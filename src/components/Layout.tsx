@@ -98,6 +98,9 @@ const Layout = ({ children }: LayoutProps) => {
                   <Link component={RouterLink} to="/add" sx={{ textDecoration: 'none' }}>
                     <NavButton>Add Pokémon</NavButton>
                   </Link>
+                  <Link component={RouterLink} to="/tracker" sx={{ textDecoration: 'none' }}>
+                    <NavButton>Pokédex Tracker</NavButton>
+                  </Link>
                 </>
               )}
               

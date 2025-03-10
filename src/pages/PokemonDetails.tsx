@@ -51,6 +51,10 @@ import { MyPokemon } from '../types/pokemon';
 import TypeBadge from '../components/TypeBadge';
 import StatBar from '../components/StatBar';
 import { format } from 'date-fns';
+import { formatPokedexNumber, isVariantForm, getFormName } from '../utils/pokemonUtils';
+import EVDistributor from '../components/EVDistributor';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import Snackbar from '@mui/material/Snackbar';
 
 // Map of Poké Ball names to their image filenames
 const pokeballMap: Record<string, string> = {
@@ -135,6 +139,110 @@ const PokemonDetails = () => {
     id
   });
 
+
+  const [showCopySnackbar, setShowCopySnackbar] = useState(false);
+// Add this function inside your PokemonDetails component
+const generateShowdownImport = (pokemon: MyPokemon): string => {
+  // Start with the Pokémon name or nickname
+  let showdownText = pokemon.nickname || capitalizeFirstLetter(pokemon.name);
+  
+  // Add gender if specified
+  if (pokemon.gender && pokemon.gender !== 'N/A') {
+    showdownText += ` (${pokemon.gender})`;
+  }
+  
+  // Add item if available (not in your current data model, but could be added)
+  // if (pokemon.item) {
+  //   showdownText += ` @ ${pokemon.item}`;
+  // }
+  
+  showdownText += '\n';
+  
+  // Add ability
+  showdownText += `Ability: ${capitalizeFirstLetter(pokemon.ability || 'Unknown')}\n`;
+  
+  // Add level if not 100
+  if (pokemon.level && pokemon.level < 100) {
+    showdownText += `Level: ${pokemon.level}\n`;
+  }
+  
+  // Add shiny status if shiny
+  if (pokemon.shiny) {
+    showdownText += 'Shiny: Yes\n';
+  }
+  
+  // Add Tera Type (default to Grass as requested)
+  showdownText += 'Tera Type: Grass\n';
+  
+  // Add EVs if any are set
+  const evs = pokemon.evs;
+  const evEntries = Object.entries(evs).filter(([_, value]) => value > 0);
+  
+  if (evEntries.length > 0) {
+    const evString = evEntries
+      .map(([stat, value]) => {
+        // Format the stat name for EVs
+        let formattedStat;
+        switch (stat.toLowerCase()) {
+          case 'hp': formattedStat = 'HP'; break;
+          case 'attack': formattedStat = 'Atk'; break;
+          case 'defense': formattedStat = 'Def'; break;
+          case 'special-attack': formattedStat = 'SpA'; break;
+          case 'special-defense': formattedStat = 'SpD'; break;
+          case 'speed': formattedStat = 'Spe'; break;
+          default: formattedStat = stat;
+        }
+        return `${value} ${formattedStat}`;
+      })
+      .join(' / ');
+    
+    showdownText += `EVs: ${evString}\n`;
+  }
+  
+  // Add IVs if any are not 31
+  const ivs = pokemon.ivs;
+  const ivEntries = Object.entries(ivs).filter(([_, value]) => value < 31);
+  
+  if (ivEntries.length > 0) {
+    const ivString = ivEntries
+      .map(([stat, value]) => {
+        // Format the stat name for IVs (same as EVs)
+        let formattedStat;
+        switch (stat.toLowerCase()) {
+          case 'hp': formattedStat = 'HP'; break;
+          case 'attack': formattedStat = 'Atk'; break;
+          case 'defense': formattedStat = 'Def'; break;
+          case 'special-attack': formattedStat = 'SpA'; break;
+          case 'special-defense': formattedStat = 'SpD'; break;
+          case 'speed': formattedStat = 'Spe'; break;
+          default: formattedStat = stat;
+        }
+        return `${value} ${formattedStat}`;
+      })
+      .join(' / ');
+    
+    showdownText += `IVs: ${ivString}\n`;
+  }
+  
+  // Add nature
+  showdownText += `${pokemon.nature} Nature\n`;
+  
+  // Add moves
+  if (pokemon.moves && pokemon.moves.length > 0) {
+    pokemon.moves.forEach(move => {
+      if (move && move.trim()) {
+        showdownText += `- ${capitalizeFirstLetter(move)}\n`;
+      }
+    });
+  } else {
+    // Add placeholder moves if none are specified
+    showdownText += '- (No Moves)\n';
+  }
+  
+  return showdownText;
+};
+
+
   const myCollection = useSelector((state: RootState) => state.pokemon.myCollection);
 
   // Find pokemon using collectionId
@@ -181,6 +289,25 @@ const PokemonDetails = () => {
     }
   };
 
+  const handleCopyToShowdown = () => {
+    // Add a type guard to check if pokemon exists
+    if (!pokemon) {
+      console.error('Cannot copy to Showdown: Pokemon is undefined');
+      return;
+    }
+    
+    const showdownText = generateShowdownImport(pokemon);
+    navigator.clipboard.writeText(showdownText)
+      .then(() => {
+        setShowCopySnackbar(true);
+      })
+      .catch(err => {
+        console.error('Failed to copy text: ', err);
+      });
+  };
+
+
+  
   const handleEditClick = () => {
     if (pokemon) {
       setEditedPokemon(pokemon);
@@ -264,7 +391,16 @@ const PokemonDetails = () => {
           Back to Collection
         </Button>
         
-        <Box>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Button
+            startIcon={<ContentCopyIcon />}
+            onClick={handleCopyToShowdown}
+            sx={{ mr: 1 }}
+            variant="outlined"
+            color="secondary"
+          >
+            Copy to Showdown
+          </Button>
           <IconButton 
             color="primary" 
             onClick={handleEditClick} 
@@ -281,6 +417,13 @@ const PokemonDetails = () => {
           </Button>
         </Box>
       </Box>
+
+      <Snackbar
+  open={showCopySnackbar}
+  autoHideDuration={3000}
+  onClose={() => setShowCopySnackbar(false)}
+  message="Copied to clipboard for Pokémon Showdown!"
+/>
 
       <Card sx={{ position: 'relative', mb: 3, overflow: 'visible', boxShadow: 3 }}>
         <Typography 
@@ -299,7 +442,20 @@ const PokemonDetails = () => {
             fontWeight: 500,
           }}
         >
-          #{pokemon.id.toString().padStart(3, '0')}
+          {formatPokedexNumber(pokemon.id)}
+          {isVariantForm(pokemon.id) && (
+            <Typography
+              component="span"
+              sx={{
+                fontSize: '0.8rem',
+                display: 'block',
+                textAlign: 'center',
+                color: 'text.secondary'
+              }}
+              >
+                {getFormName(pokemon.name) || 'Form'}
+            </Typography>
+          )}
         </Typography>
 
         {pokemon.shiny && (
@@ -623,152 +779,258 @@ const PokemonDetails = () => {
       </Grid>
 
       {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
-        <DialogTitle>Edit {pokemon.name}</DialogTitle>
-        <DialogContent dividers>
-          {editedPokemon && (
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Nickname"
-                  name="nickname"
-                  value={editedPokemon.nickname || ''}
-                  onChange={handleInputChange}
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Level"
-                  name="level"
-                  type="number"
-                  value={editedPokemon.level}
-                  onChange={handleInputChange}
-                  margin="normal"
-                  InputProps={{ inputProps: { min: 1, max: 100 } }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Nature</InputLabel>
-                  <Select
-                    name="nature"
-                    value={editedPokemon.nature}
-                    onChange={handleSelectChange}
-                    label="Nature"
-                  >
-                    {['Hardy', 'Lonely', 'Brave', 'Adamant', 'Naughty', 'Bold', 'Docile', 'Relaxed', 'Impish', 'Lax', 'Timid', 'Hasty', 'Serious', 'Jolly', 'Naive', 'Modest', 'Mild', 'Quiet', 'Bashful', 'Rash', 'Calm', 'Gentle', 'Sassy', 'Careful', 'Quirky'].map((nature) => (
-                      <MenuItem key={nature} value={nature}>{nature}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Gender</InputLabel>
-                  <Select
-                    name="gender"
-                    value={editedPokemon.gender || 'N/A'}
-                    onChange={handleSelectChange}
-                    label="Gender"
-                  >
-                    <MenuItem value="Male">Male</MenuItem>
-                    <MenuItem value="Female">Female</MenuItem>
-                    <MenuItem value="N/A">N/A</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Location"
-                  name="location"
-                  value={editedPokemon.location || ''}
-                  onChange={handleInputChange}
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Caught From"
-                  name="caughtFrom"
-                  value={editedPokemon.caughtFrom || ''}
-                  onChange={handleInputChange}
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Poké Ball</InputLabel>
-                  <Select
-                    name="pokeball"
-                    value={editedPokemon.pokeball || 'Poke Ball'}
-                    onChange={handleSelectChange}
-                    label="Poké Ball"
-                  >
-                    {Object.keys(pokeballMap).map((ball) => (
-                      <MenuItem key={ball} value={ball}>{ball}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                                   fullWidth
-                                   label="Original Trainer"
-                                   name="originalTrainer"
-                                   value={editedPokemon.originalTrainer || ''}
-                                   onChange={handleInputChange}
-                                   margin="normal"
-                                 />
-                               </Grid>
-                               <Grid item xs={12} sm={6}>
-                                 <TextField
-                                   fullWidth
-                                   label="Trainer ID"
-                                   name="trainerId"
-                                   value={editedPokemon.trainerId || ''}
-                                   onChange={handleInputChange}
-                                   margin="normal"
-                                 />
-                               </Grid>
-                               <Grid item xs={12} sm={6}>
-                                 <TextField
-                                   fullWidth
-                                   label="Caught Date"
-                                   name="caughtDate"
-                                   type="date"
-                                   value={editedPokemon.caughtDate ? new Date(editedPokemon.caughtDate).toISOString().split('T')[0] : ''}
-                                   onChange={handleInputChange}
-                                   margin="normal"
-                                   InputLabelProps={{ shrink: true }}
-                                 />
-                               </Grid>
-                               <Grid item xs={12}>
-                                 <TextField
-                                   fullWidth
-                                   label="Comments"
-                                   name="comments"
-                                   value={editedPokemon.comments || ''}
-                                   onChange={handleInputChange}
-                                   margin="normal"
-                                   multiline
-                                   rows={4}
-                                 />
-                               </Grid>
-                             </Grid>
-                           )}
-                         </DialogContent>
-                         <DialogActions>
-                           <Button onClick={handleCloseDialog}>Cancel</Button>
-                           <Button onClick={handleSaveChanges} color="primary" variant="contained">
-                             Save Changes
-                           </Button>
-                         </DialogActions>
-                       </Dialog>
+<Dialog open={isEditDialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+  <DialogTitle>Edit {pokemon.name}</DialogTitle>
+  <DialogContent dividers>
+    {editedPokemon && (
+      <Box sx={{ py: 1 }}>
+        <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>Basic Information</Typography>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Nickname"
+              name="nickname"
+              value={editedPokemon.nickname || ''}
+              onChange={handleInputChange}
+              margin="normal"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Level"
+              name="level"
+              type="number"
+              value={editedPokemon.level}
+              onChange={handleInputChange}
+              margin="normal"
+              InputProps={{ inputProps: { min: 1, max: 100 } }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Nature</InputLabel>
+              <Select
+                name="nature"
+                value={editedPokemon.nature}
+                onChange={handleSelectChange}
+                label="Nature"
+              >
+                {['Hardy', 'Lonely', 'Brave', 'Adamant', 'Naughty', 'Bold', 'Docile', 'Relaxed', 'Impish', 'Lax', 'Timid', 'Hasty', 'Serious', 'Jolly', 'Naive', 'Modest', 'Mild', 'Quiet', 'Bashful', 'Rash', 'Calm', 'Gentle', 'Sassy', 'Careful', 'Quirky'].map((nature) => (
+                  <MenuItem key={nature} value={nature}>{nature}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Ability</InputLabel>
+              <Select
+                name="ability"
+                value={editedPokemon.ability || ''}
+                onChange={handleSelectChange}
+                label="Ability"
+              >
+                {pokemon.abilities?.map((ability: any) => (
+                  <MenuItem key={ability.ability.name} value={ability.ability.name}>
+                    {capitalizeFirstLetter(ability.ability.name)}
+                  </MenuItem>
+                )) || (
+                  <MenuItem value={editedPokemon.ability || ''}>
+                    {capitalizeFirstLetter(editedPokemon.ability || '')}
+                  </MenuItem>
+                )}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Gender</InputLabel>
+              <Select
+                name="gender"
+                value={editedPokemon.gender || 'N/A'}
+                onChange={handleSelectChange}
+                label="Gender"
+              >
+                <MenuItem value="Male">Male</MenuItem>
+                <MenuItem value="Female">Female</MenuItem>
+                <MenuItem value="N/A">N/A</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Shiny</InputLabel>
+              <Select
+                name="shiny"
+                value={editedPokemon.shiny ? 'true' : 'false'}
+                onChange={(e) => {
+                  setEditedPokemon((prev: MyPokemon | null) => 
+                    prev ? { ...prev, shiny: e.target.value === 'true' } : prev
+                  );
+                }}
+                label="Shiny"
+              >
+                <MenuItem value="true">Yes</MenuItem>
+                <MenuItem value="false">No</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+
+        <Typography variant="h6" gutterBottom sx={{ mt: 4, mb: 2 }}>Collection Details</Typography>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Location"
+              name="location"
+              value={editedPokemon.location || ''}
+              onChange={handleInputChange}
+              margin="normal"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Caught From"
+              name="caughtFrom"
+              value={editedPokemon.caughtFrom || ''}
+              onChange={handleInputChange}
+              margin="normal"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Poké Ball</InputLabel>
+              <Select
+                name="pokeball"
+                value={editedPokemon.pokeball || 'Poke Ball'}
+                onChange={handleSelectChange}
+                label="Poké Ball"
+              >
+                {Object.keys(pokeballMap).map((ball) => (
+                  <MenuItem key={ball} value={ball}>{ball}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Original Trainer"
+              name="originalTrainer"
+              value={editedPokemon.originalTrainer || ''}
+              onChange={handleInputChange}
+              margin="normal"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Trainer ID"
+              name="trainerId"
+              value={editedPokemon.trainerId || ''}
+              onChange={handleInputChange}
+              margin="normal"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Caught Date"
+              name="caughtDate"
+              type="date"
+              value={editedPokemon.caughtDate ? new Date(editedPokemon.caughtDate).toISOString().split('T')[0] : ''}
+              onChange={handleInputChange}
+              margin="normal"
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+        </Grid>
+
+        <Typography variant="h6" gutterBottom sx={{ mt: 4, mb: 2 }}>IVs</Typography>
+        <Grid container spacing={2}>
+          {Object.entries(editedPokemon.ivs).map(([stat, value]) => (
+            <Grid item xs={6} sm={4} md={2} key={`iv-${stat}`}>
+              <TextField
+                fullWidth
+                label={capitalizeFirstLetter(stat)}
+                type="number"
+                value={value}
+                onChange={(e) => {
+                  const newValue = Math.min(31, Math.max(0, parseInt(e.target.value) || 0));
+                  setEditedPokemon((prev: MyPokemon | null) => 
+                    prev ? { 
+                      ...prev, 
+                      ivs: { ...prev.ivs, [stat]: newValue } 
+                    } : prev
+                  );
+                }}
+                margin="normal"
+                InputProps={{ inputProps: { min: 0, max: 31 } }}
+              />
+            </Grid>
+          ))}
+        </Grid>
+
+        <Typography variant="h6" gutterBottom sx={{ mt: 4, mb: 2 }}>EVs</Typography>
+        <EVDistributor
+  evs={editedPokemon.evs as any}
+  onChange={(newEVs) => {
+    setEditedPokemon((prev: MyPokemon | null) => 
+      prev ? { ...prev, evs: newEVs } : prev
+    );
+  }}
+/>
+
+        <Typography variant="h6" gutterBottom sx={{ mt: 4, mb: 2 }}>Moves</Typography>
+        <Grid container spacing={2}>
+          {[0, 1, 2, 3].map((index) => (
+            <Grid item xs={12} sm={6} key={`move-${index}`}>
+              <TextField
+                fullWidth
+                label={`Move ${index + 1}`}
+                value={editedPokemon.moves[index] || ''}
+                onChange={(e) => {
+                  const newMoves = [...editedPokemon.moves];
+                  newMoves[index] = e.target.value;
+                  setEditedPokemon((prev: MyPokemon | null) => 
+                    prev ? { ...prev, moves: newMoves } : prev
+                  );
+                }}
+                margin="normal"
+              />
+            </Grid>
+          ))}
+        </Grid>
+
+        <Typography variant="h6" gutterBottom sx={{ mt: 4, mb: 2 }}>Comments</Typography>
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Comments"
+              name="comments"
+              value={editedPokemon.comments || ''}
+              onChange={handleInputChange}
+              margin="normal"
+              multiline
+              rows={4}
+            />
+          </Grid>
+        </Grid>
+      </Box>
+    )}
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={handleCloseDialog}>Cancel</Button>
+    <Button onClick={handleSaveChanges} color="primary" variant="contained">
+      Save Changes
+    </Button>
+  </DialogActions>
+</Dialog>
                      </Box>
                    );
                  };

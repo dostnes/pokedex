@@ -18,6 +18,7 @@ import {
   MenuItem,
   InputLabel,
   SelectChangeEvent,
+  Chip,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import { RootState } from '../store/store';
@@ -25,6 +26,7 @@ import { fetchAllPokemon, clearCollection } from '../store/pokemonSlice';
 import type { AppDispatch } from '../store/store';
 import { capitalizeFirstLetter } from '../services/pokeApi';
 import TypeBadge from '../components/TypeBadge';
+import { formatPokedexNumber, isVariantForm, getFormName, getBaseName } from '../utils/pokemonUtils';
 
 type SortOption = 'pokedexNumber' | 'recentlyAdded';
 
@@ -173,6 +175,10 @@ const Collection = () => {
           <Grid container spacing={3} key={renderKey}>
             {sortedCollection.map((pokemon) => {
               const pokemonKey = `pokemon-${pokemon.collectionId}`;
+              // Capitalize name
+              const formName = getFormName(pokemon.name)
+              ? capitalizeFirstLetter(getFormName(pokemon.name) || '')
+              : 'Form';
               
               return (
                 <Grid item xs={12} sm={6} md={4} key={pokemonKey}>
@@ -191,6 +197,7 @@ const Collection = () => {
                       },
                     }}
                   >
+                    {/* Normalized Pokédex number */}
                     <Typography 
                       variant="body2" 
                       sx={{ 
@@ -207,15 +214,35 @@ const Collection = () => {
                         fontWeight: 500,
                       }}
                     >
-                      #{pokemon.id.toString().padStart(3, '0')}
+                      {formatPokedexNumber(pokemon.id)}
                     </Typography>
+                    
+                    {/* Form indicator if applicable */}
+                    {isVariantForm(pokemon.id) && (
+                      <Chip
+                        label={formName}
+                        size="small"
+                        sx={{
+                          position: 'absolute',
+                          top: 8,
+                          left: 8,
+                          zIndex: 2,
+                          fontSize: '0.75rem',
+                          height: 22,
+                          backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                          border: '1px solid rgba(25, 118, 210, 0.3)',
+                          color: 'primary.main',
+                          fontWeight: 'medium',
+                        }}
+                      />
+                    )}
                     
                     {pokemon.shiny && (
                       <Box
                         sx={{
                           position: 'absolute',
-                          top: 8,
-                          right: 70,
+                          top: isVariantForm(pokemon.id) ? 36 : 8,
+                          left: 8,
                           bgcolor: 'warning.main',
                           color: 'warning.contrastText',
                           px: 1,
@@ -254,7 +281,9 @@ const Collection = () => {
                     
                     <CardContent sx={{ flexGrow: 1 }}>
                       <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                        {pokemon.nickname || capitalizeFirstLetter(pokemon.name)}
+                        {pokemon.nickname || (isVariantForm(pokemon.id) 
+                          ? `${capitalizeFirstLetter(getBaseName(pokemon.name))} (${formName})` 
+                          : capitalizeFirstLetter(pokemon.name))}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 1 }}>
                         Level {pokemon.level} • {pokemon.nature}
