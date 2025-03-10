@@ -2,6 +2,8 @@
 export interface Pokemon {
   id: number;
   name: string;
+  url?: string;
+  timestamp?: number;
   types: Array<{ type: { name: string } }>;
   stats: Array<{ base_stat: number; stat: { name: string } }>;
   sprites: {
@@ -31,6 +33,7 @@ export interface MyPokemon {
   // Copy from Pokemon
   id: number;
   name: string;
+  timestamp?: number;
   types: Array<{ type: { name: string } }>;
   stats: Array<{ base_stat: number; stat: { name: string } }>;
   sprites: {

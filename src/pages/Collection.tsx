@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import {
@@ -13,31 +13,87 @@ import {
   TextField,
   InputAdornment,
   Button,
+  FormControl,
+  Select,
+  MenuItem,
+  InputLabel,
+  SelectChangeEvent,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import { RootState } from '../store/store';
 import { fetchAllPokemon, clearCollection } from '../store/pokemonSlice';
 import type { AppDispatch } from '../store/store';
-import { useState } from 'react';
 import { capitalizeFirstLetter } from '../services/pokeApi';
 import TypeBadge from '../components/TypeBadge';
+
+type SortOption = 'pokedexNumber' | 'recentlyAdded';
 
 const Collection = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const { myCollection, loading, error, isInitialized } = useSelector((state: RootState) => state.pokemon);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('pokedexNumber');
 
+  // Add debugging to see collection data
   useEffect(() => {
-    if (!isInitialized) {
-      dispatch(fetchAllPokemon());
-    }
-  }, [dispatch, isInitialized]);
+    console.log('Collection data:', myCollection);
+  }, [myCollection]);
 
+  // Add debugging for sort changes
+  useEffect(() => {
+    console.log('Sort option changed to:', sortBy);
+  }, [sortBy]);
+
+  const handleSortChange = (event: SelectChangeEvent) => {
+    console.log('Sort changed to:', event.target.value);
+    setSortBy(event.target.value as SortOption);
+  };
+
+  // First filter by search term
   const filteredCollection = myCollection.filter(pokemon =>
     pokemon.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (pokemon.nickname && pokemon.nickname.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  // Then sort the filtered collection with improved logging
+  const sortedCollection = [...filteredCollection].sort((a, b) => {
+    if (sortBy === 'pokedexNumber') {
+      console.log(`Sorting by Pokédex: ${a.name}(${a.id}) vs ${b.name}(${b.id})`);
+      return a.id - b.id;
+    } else { // recentlyAdded
+      // Try multiple approaches to get timestamp information
+      let aTime, bTime;
+      
+      // Method 1: Use timestamp property if available
+      if (a.timestamp && b.timestamp) {
+        aTime = a.timestamp;
+        bTime = b.timestamp;
+        console.log(`Using timestamp: ${a.name}(${aTime}) vs ${b.name}(${bTime})`);
+      } 
+      // Method 2: Extract from collectionId
+      else if (a.collectionId && b.collectionId) {
+        aTime = parseInt(a.collectionId.split('-')[1]) || 0;
+        bTime = parseInt(b.collectionId.split('-')[1]) || 0;
+        console.log(`Using collectionId: ${a.name}(${aTime}) vs ${b.name}(${bTime})`);
+      }
+      // Method 3: Fallback to using collectionId as a whole
+      else {
+        aTime = a.collectionId || '0';
+        bTime = b.collectionId || '0';
+        console.log(`Using collectionId string: ${a.name}(${aTime}) vs ${b.name}(${bTime})`);
+        return bTime.localeCompare(aTime); // String comparison for collectionIds
+      }
+      
+      // Numeric comparison for timestamps
+      if (typeof aTime === 'number' && typeof bTime === 'number') {
+        return bTime - aTime; // Higher timestamp means more recently added
+      }
+      
+      // Default return if all else fails
+      return 0;
+    }
+  });
 
   const handlePokemonClick = (pokemon: typeof filteredCollection[0]) => {
     const navigatePath = `/pokemon/${pokemon.collectionId}`;
@@ -49,6 +105,12 @@ const Collection = () => {
       dispatch(clearCollection());
     }
   };
+
+  // Force re-render when sort option changes
+  const [renderKey, setRenderKey] = useState(0);
+  useEffect(() => {
+    setRenderKey(prev => prev + 1);
+  }, [sortBy]);
 
   return (
     <Box>
@@ -65,20 +127,37 @@ const Collection = () => {
             Clear Collection
           </Button>
         </Box>
-        <TextField
-          fullWidth
-          variant="outlined"
-          placeholder="Search by name or nickname..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-        />
+        
+        <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+          <TextField
+            fullWidth
+            variant="outlined"
+            placeholder="Search by name or nickname..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+          
+          <FormControl sx={{ minWidth: 200 }}>
+            <InputLabel id="sort-select-label">Sort By</InputLabel>
+            <Select
+              labelId="sort-select-label"
+              id="sort-select"
+              value={sortBy}
+              label="Sort By"
+              onChange={handleSortChange}
+            >
+              <MenuItem value="pokedexNumber">Pokédex Number</MenuItem>
+              <MenuItem value="recentlyAdded">Recent</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
       </Box>
 
       {loading && !isInitialized ? (
@@ -91,8 +170,8 @@ const Collection = () => {
         </Alert>
       ) : (
         <>
-          <Grid container spacing={3}>
-            {filteredCollection.map((pokemon) => {
+          <Grid container spacing={3} key={renderKey}>
+            {sortedCollection.map((pokemon) => {
               const pokemonKey = `pokemon-${pokemon.collectionId}`;
               
               return (
@@ -196,7 +275,7 @@ const Collection = () => {
             })}
           </Grid>
 
-          {filteredCollection.length === 0 && (
+          {sortedCollection.length === 0 && (
             <Box sx={{ textAlign: 'center', mt: 8, p: 4, bgcolor: 'background.paper', borderRadius: 2, boxShadow: 1 }}>
               <Typography variant="h6" gutterBottom>
                 Your collection is empty

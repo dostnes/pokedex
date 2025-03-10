@@ -15,6 +15,7 @@ import { styled, useTheme as useMuiTheme } from '@mui/material/styles';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { useTheme } from '../context/ThemeContext';
+import DataManagement from './DataManagement';
 
 interface LayoutProps {
   children: ReactNode;
@@ -99,6 +100,10 @@ const Layout = ({ children }: LayoutProps) => {
                   </Link>
                 </>
               )}
+              
+              {/* Add DataManagement component here */}
+              <DataManagement />
+              
               <IconButton
                 onClick={toggleTheme}
                 color="inherit"
@@ -148,7 +153,7 @@ const Layout = ({ children }: LayoutProps) => {
             color="text.secondary"
             align="center"
           >
-            © {new Date().getFullYear()} Pokédex App - gotta catch em all!
+            © {new Date().getFullYear()} Pokédex App - data provided by <a href="https://pokeapi.co/" target="_blank" rel="noopener noreferrer">PokéAPI</a>
           </Typography>
         </Container>
       </Box>

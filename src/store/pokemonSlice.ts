@@ -1,83 +1,46 @@
 import { createSlice, createAsyncThunk, PayloadAction, createAction } from '@reduxjs/toolkit';
 import { Pokemon, MyPokemon } from '../types/pokemon';
 import { pokeApi } from '../services/pokeApi';
+import { collectionDb } from '../services/collectionDb';
 
-const CACHE_KEY = 'pokemon_cache';
-const COLLECTION_KEY = 'pokemon_collection';
-const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-
-interface CachedData {
-  data: Pokemon[];
-  timestamp: number;
-}
+// Initialize collection from IndexedDB
+export const initializeCollection = createAsyncThunk(
+  'pokemon/initializeCollection',
+  async () => {
+    const collection = await collectionDb.getAll();
+    return collection;
+  }
+);
 
 interface PokemonState {
-  allPokemon: Pokemon[];
+  allPokemon: {
+    results: Pokemon[];
+    count: number;
+    next: string | null;
+    previous: string | null;
+  };
   myCollection: MyPokemon[];
   loading: boolean;
   error: string | null;
   isInitialized: boolean;
 }
 
-const loadFromCache = () => {
-  const cached = localStorage.getItem(CACHE_KEY);
-  const collection = localStorage.getItem(COLLECTION_KEY);
-  
-  let pokemonData = null;
-  if (cached) {
-    const parsedCache = JSON.parse(cached);
-    const now = new Date().getTime();
-    // Check if cache has expired
-    if (now - parsedCache.timestamp < CACHE_EXPIRY) {
-      console.log('🚀 Using cached Pokémon data', {
-        cacheAge: `${Math.round((now - parsedCache.timestamp) / 1000 / 60)} minutes old`,
-        pokemonCount: parsedCache.data.length
-      });
-      pokemonData = parsedCache.data;
-    } else {
-      console.log('⏰ Cache expired, will fetch fresh data');
-      localStorage.removeItem(CACHE_KEY);
-    }
-  } else {
-    console.log('📭 No cache found, will fetch fresh data');
-  }
-
-  return {
-    pokemon: pokemonData,
-    collection: collection ? JSON.parse(collection) : [],
-    timestamp: cached ? JSON.parse(cached).timestamp : null,
-  };
-};
-
-const saveToCache = (data: Pokemon[]) => {
-  const cacheData: CachedData = {
-    data,
-    timestamp: new Date().getTime(),
-  };
-  localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
-  console.log('💾 Saved new data to cache', {
-    pokemonCount: data.length,
-    timestamp: new Date().toLocaleTimeString()
-  });
-};
-
-const cachedData = loadFromCache();
 const initialState: PokemonState = {
-  allPokemon: cachedData.pokemon || [],
-  myCollection: cachedData.collection,
+  allPokemon: {
+    results: [],
+    count: 0,
+    next: null,
+    previous: null
+  },
+  myCollection: [],
   loading: false,
   error: null,
-  isInitialized: !!cachedData.pokemon,
+  isInitialized: false,
 };
-
-interface PokemonResult {
-  name: string;
-  url: string;
-}
 
 export const fetchAllPokemon = createAsyncThunk(
   'pokemon/fetchAll',
-  async (_, { getState }) => {
+  async (_, { getState, rejectWithValue }) => {
     const state = getState() as { pokemon: PokemonState };
     
     try {
@@ -86,23 +49,57 @@ export const fetchAllPokemon = createAsyncThunk(
         return state.pokemon.allPokemon;
       }
 
-      // Try to load from cache first
-      const cachedData = loadFromCache();
-      if (cachedData?.pokemon) {
-        return cachedData.pokemon;
-      }
-
-      // Fetch from API if no cache
-      const response = await pokeApi.getAllPokemon();
-      const pokemonDetails = await Promise.all(
-        response.results.map((p: PokemonResult) => pokeApi.getPokemonByName(p.name))
-      );
+      // Get the first page of Pokemon
+      console.log('Fetching from local server at http://localhost:3002/api/v2');
+      const response = await pokeApi.getAllPokemon(2000, 0);
       
-      saveToCache(pokemonDetails);
-      return pokemonDetails;
+      return {
+        results: response.results,
+        count: response.count,
+        next: response.next,
+        previous: response.previous
+      };
     } catch (error) {
       console.error('Error fetching Pokemon:', error);
-      throw error;
+      return rejectWithValue(error instanceof Error ? error.message : 'Unknown error');
+    }
+  }
+);
+
+// Add a new thunk for loading more Pokemon
+export const fetchMorePokemon = createAsyncThunk(
+  'pokemon/fetchMore',
+  async (params: { limit: number, offset: number }, { rejectWithValue }) => {
+    try {
+      const response = await pokeApi.getAllPokemon(params.limit, params.offset);
+      return {
+        results: response.results,
+        count: response.count,
+        next: response.next,
+        previous: response.previous
+      };
+    } catch (error) {
+      console.error('Error fetching more Pokemon:', error);
+      return rejectWithValue(error instanceof Error ? error.message : 'Unknown error');
+    }
+  }
+);
+
+// Add a thunk for searching
+export const searchPokemon = createAsyncThunk(
+  'pokemon/search',
+  async (searchTerm: string, { rejectWithValue }) => {
+    try {
+      const response = await pokeApi.searchPokemon(searchTerm);
+      return {
+        results: response.results,
+        count: response.count,
+        next: null,
+        previous: null
+      };
+    } catch (error) {
+      console.error('Error searching Pokemon:', error);
+      return rejectWithValue(error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -138,7 +135,7 @@ const pokemonSlice = createSlice({
           pokeball: action.payload.pokeball || 'Poke Ball',
           gender: action.payload.gender || 'N/A',
           ability: action.payload.ability || 
-        (action.payload.abilities && action.payload.abilities[0]?.ability.name) || '',
+            (action.payload.abilities && action.payload.abilities[0]?.ability.name) || '',
           originalTrainer: action.payload.originalTrainer || '',
           trainerId: action.payload.trainerId || '',
           caughtDate: action.payload.caughtDate || new Date().toISOString(),
@@ -146,7 +143,8 @@ const pokemonSlice = createSlice({
         };
 
         state.myCollection.push(newPokemon);
-        localStorage.setItem(COLLECTION_KEY, JSON.stringify(state.myCollection));
+        // Save to IndexedDB instead of localStorage
+        collectionDb.add(newPokemon);
         console.log('➕ Added Pokémon to collection', {
           name: newPokemon.name,
           collectionId: newPokemon.collectionId,
@@ -163,7 +161,8 @@ const pokemonSlice = createSlice({
         );
         if (index !== -1) {
           state.myCollection[index] = action.payload;
-          localStorage.setItem(COLLECTION_KEY, JSON.stringify(state.myCollection));
+          // Update in IndexedDB instead of localStorage
+          collectionDb.update(action.payload);
           console.log('📝 Updated Pokémon in collection', {
             name: action.payload.name,
             collectionId: action.payload.collectionId
@@ -179,11 +178,17 @@ const pokemonSlice = createSlice({
       try {
         console.log('🧹 Clearing collection...');
         state.myCollection = [];
-        localStorage.setItem(COLLECTION_KEY, JSON.stringify([]));
+        // Clear in IndexedDB instead of localStorage
+        collectionDb.clear();
         console.log('✅ Collection cleared successfully');
       } catch (error) {
         console.error('❌ Error clearing collection:', error);
       }
+    },
+    importCollection: (state, action: PayloadAction<MyPokemon[]>) => {
+      state.myCollection = action.payload;
+      // Save to local storage
+      localStorage.setItem('myCollection', JSON.stringify(action.payload));
     }
   },
   extraReducers: (builder) => {
@@ -200,7 +205,7 @@ const pokemonSlice = createSlice({
         state.allPokemon = action.payload;
         state.isInitialized = true;
         console.log('✅ Pokémon fetch completed', {
-          count: action.payload.length
+          count: action.payload.count
         });
       })
       .addCase(fetchAllPokemon.rejected, (state, action) => {
@@ -209,6 +214,34 @@ const pokemonSlice = createSlice({
         console.error('❌ Pokémon fetch failed', {
           error: action.error.message
         });
+      })
+      .addCase(fetchMorePokemon.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchMorePokemon.fulfilled, (state, action) => {
+        state.loading = false;
+        // Append new results to existing ones
+        state.allPokemon = {
+          ...action.payload,
+          results: [...state.allPokemon.results, ...action.payload.results]
+        };
+      })
+      .addCase(fetchMorePokemon.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch more Pokemon';
+      })
+      .addCase(searchPokemon.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(searchPokemon.fulfilled, (state, action) => {
+        state.loading = false;
+        state.allPokemon = action.payload;
+      })
+      .addCase(searchPokemon.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to search Pokemon';
       })
       .addCase(removeFromCollection, (state, action) => {
         try {
@@ -228,14 +261,21 @@ const pokemonSlice = createSlice({
             pokemon => pokemon.collectionId !== action.payload
           );
           
-          localStorage.setItem(COLLECTION_KEY, JSON.stringify(state.myCollection));
+          // Delete from IndexedDB instead of localStorage
+          collectionDb.delete(action.payload);
           console.log('✅ Collection updated. New size:', state.myCollection.length);
         } catch (error) {
           console.error('❌ Error removing Pokémon:', error);
         }
+      })
+      .addCase(initializeCollection.fulfilled, (state, action) => {
+        state.myCollection = action.payload;
+        console.log('✅ Collection initialized from IndexedDB', {
+          size: action.payload.length
+        });
       });
   }
 });
 
-export const { addToCollection, updatePokemon, clearCollection } = pokemonSlice.actions;
+export const { addToCollection, updatePokemon, clearCollection, importCollection } = pokemonSlice.actions;
 export default pokemonSlice.reducer;

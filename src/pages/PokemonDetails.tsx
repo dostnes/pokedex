@@ -1,5 +1,6 @@
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -9,20 +10,122 @@ import {
   Grid,
   Typography,
   Paper,
+  Divider,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
+  SelectChangeEvent,
+  Avatar,
+  Tooltip,
+  Chip,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import EditIcon from '@mui/icons-material/Edit';
+import SportsBaseballIcon from '@mui/icons-material/SportsBaseball';
+import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
+import NatureIcon from '@mui/icons-material/Nature';
+import WcIcon from '@mui/icons-material/Wc';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import VideogameAssetIcon from '@mui/icons-material/VideogameAsset';
+import PersonIcon from '@mui/icons-material/Person';
+import BadgeIcon from '@mui/icons-material/Badge';
+import CommentIcon from '@mui/icons-material/Comment';
+import FlashOnIcon from '@mui/icons-material/FlashOn';
 import { RootState, AppDispatch } from '../store/store';
-import { removeFromCollection } from '../store/pokemonSlice';
+import { removeFromCollection, updatePokemon } from '../store/pokemonSlice';
 import { capitalizeFirstLetter } from '../services/pokeApi';
 import { MyPokemon } from '../types/pokemon';
 import TypeBadge from '../components/TypeBadge';
 import StatBar from '../components/StatBar';
+import { format } from 'date-fns';
+
+// Map of Poké Ball names to their image filenames
+const pokeballMap: Record<string, string> = {
+  'Poke Ball': 'poke-ball',
+  'Great Ball': 'great-ball',
+  'Ultra Ball': 'ultra-ball',
+  'Master Ball': 'master-ball',
+  'Safari Ball': 'safari-ball',
+  'Level Ball': 'level-ball',
+  'Lure Ball': 'lure-ball',
+  'Moon Ball': 'moon-ball',
+  'Friend Ball': 'friend-ball',
+  'Love Ball': 'love-ball',
+  'Heavy Ball': 'heavy-ball',
+  'Fast Ball': 'fast-ball',
+  'Sport Ball': 'sport-ball',
+  'Premier Ball': 'premier-ball',
+  'Repeat Ball': 'repeat-ball',
+  'Timer Ball': 'timer-ball',
+  'Nest Ball': 'nest-ball',
+  'Net Ball': 'net-ball',
+  'Dive Ball': 'dive-ball',
+  'Luxury Ball': 'luxury-ball',
+  'Heal Ball': 'heal-ball',
+  'Quick Ball': 'quick-ball',
+  'Dusk Ball': 'dusk-ball',
+  'Cherish Ball': 'cherish-ball',
+  'Dream Ball': 'dream-ball',
+  'Beast Ball': 'beast-ball',
+};
+
+// Function to get the Poké Ball image URL from GitHub
+const getPokeballImageUrl = (pokeball: string): string => {
+  const pokeballFileName = pokeballMap[pokeball] || 'poke-ball'; // Default to Poke Ball if not found
+  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${pokeballFileName}.png`;
+};
+
+// Fallback colors for Poké Balls (used if image fails to load)
+const pokeballColors: Record<string, { main: string; text: string }> = {
+  'Poke Ball': { main: '#f44336', text: 'white' },
+  'Great Ball': { main: '#2196f3', text: 'white' },
+  'Ultra Ball': { main: '#ffc107', text: 'black' },
+  'Master Ball': { main: '#9c27b0', text: 'white' },
+  'Safari Ball': { main: '#4caf50', text: 'white' },
+  'Level Ball': { main: '#ff9800', text: 'black' },
+  'Lure Ball': { main: '#03a9f4', text: 'white' },
+  'Moon Ball': { main: '#673ab7', text: 'white' },
+  'Friend Ball': { main: '#8bc34a', text: 'black' },
+  'Love Ball': { main: '#e91e63', text: 'white' },
+  'Heavy Ball': { main: '#607d8b', text: 'white' },
+  'Fast Ball': { main: '#ff5722', text: 'white' },
+  'Sport Ball': { main: '#795548', text: 'white' },
+  'Premier Ball': { main: '#f5f5f5', text: 'black' },
+  'Repeat Ball': { main: '#f44336', text: 'white' },
+  'Timer Ball': { main: '#ffeb3b', text: 'black' },
+  'Nest Ball': { main: '#8bc34a', text: 'black' },
+  'Net Ball': { main: '#00bcd4', text: 'white' },
+  'Dive Ball': { main: '#0288d1', text: 'white' },
+  'Luxury Ball': { main: '#212121', text: 'white' },
+  'Heal Ball': { main: '#f48fb1', text: 'black' },
+  'Quick Ball': { main: '#ffc107', text: 'black' },
+  'Dusk Ball': { main: '#424242', text: 'white' },
+  'Cherish Ball': { main: '#d32f2f', text: 'white' },
+  'Dream Ball': { main: '#9c27b0', text: 'white' },
+  'Beast Ball': { main: '#3f51b5', text: 'white' },
+};
 
 const PokemonDetails = () => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editedPokemon, setEditedPokemon] = useState<MyPokemon | null>(null);
+  const [imageError, setImageError] = useState(false);
 
   // Enhanced debugging logs
   console.log('Debug URL info:', {
@@ -38,6 +141,14 @@ const PokemonDetails = () => {
   const pokemon = id 
     ? myCollection.find((p: MyPokemon) => p.collectionId === id)
     : null;
+
+  // Update editedPokemon when pokemon changes
+  useEffect(() => {
+    if (pokemon) {
+      setEditedPokemon(pokemon);
+      setImageError(false); // Reset image error state when pokemon changes
+    }
+  }, [pokemon]);
 
   console.log('Debug Pokemon info:', {
     foundPokemon: pokemon?.name,
@@ -70,6 +181,44 @@ const PokemonDetails = () => {
     }
   };
 
+  const handleEditClick = () => {
+    if (pokemon) {
+      setEditedPokemon(pokemon);
+      setIsEditDialogOpen(true);
+    }
+  };
+
+  const handleCloseDialog = () => {
+    setIsEditDialogOpen(false);
+  };
+
+  const handleSaveChanges = () => {
+    if (editedPokemon) {
+      dispatch(updatePokemon(editedPokemon));
+      setIsEditDialogOpen(false);
+      
+      // Reset image error state if Poké Ball changed
+      if (editedPokemon.pokeball !== pokemon?.pokeball) {
+        setImageError(false);
+      }
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setEditedPokemon((prev: MyPokemon | null) => prev ? { ...prev, [name]: value } : prev);
+  };
+
+  const handleSelectChange = (e: SelectChangeEvent<string>) => {
+    const { name, value } = e.target;
+    setEditedPokemon((prev: MyPokemon | null) => prev ? { ...prev, [name]: value } : prev);
+  };
+
+  const handleImageError = () => {
+    console.log('Poké Ball image failed to load');
+    setImageError(true);
+  };
+
   // Show loading state if we don't have the collection data yet
   if (!myCollection) {
     return <Typography>Loading...</Typography>;
@@ -94,26 +243,46 @@ const PokemonDetails = () => {
     );
   }
 
+  // Format the caught date for display
+  const formattedCaughtDate = pokemon.caughtDate 
+    ? format(new Date(pokemon.caughtDate), 'MMMM d, yyyy')
+    : 'Unknown';
+
+  // Get Poké Ball info
+  const pokeballName = pokemon.pokeball || 'Poke Ball';
+  const pokeballImageUrl = getPokeballImageUrl(pokeballName);
+  const pokeballColor = pokeballColors[pokeballName] || pokeballColors['Poke Ball'];
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
         <Button
           startIcon={<ArrowBackIcon />}
           onClick={() => navigate('/')}
+          variant="outlined"
         >
           Back to Collection
         </Button>
         
-        <Button
-          color="error"
-          variant="contained"
-          onClick={handleRemove}
-        >
-          Remove from Collection
-        </Button>
+        <Box>
+          <IconButton 
+            color="primary" 
+            onClick={handleEditClick} 
+            sx={{ mr: 1 }}
+          >
+            <EditIcon />
+          </IconButton>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={handleRemove}
+          >
+            Remove from Collection
+          </Button>
+        </Box>
       </Box>
 
-      <Card sx={{ position: 'relative' }}>
+      <Card sx={{ position: 'relative', mb: 3, overflow: 'visible', boxShadow: 3 }}>
         <Typography 
           variant="body2" 
           sx={{ 
@@ -150,6 +319,7 @@ const PokemonDetails = () => {
               display: 'flex',
               alignItems: 'center',
               gap: 0.5,
+              boxShadow: 1,
             }}
           >
             <span>✨</span>
@@ -172,9 +342,44 @@ const PokemonDetails = () => {
         />
 
         <CardContent>
-          <Typography variant="h4" gutterBottom>
-            {pokemon.nickname || capitalizeFirstLetter(pokemon.name)}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h4" sx={{ flexGrow: 1, fontWeight: 600 }}>
+              {pokemon.nickname || capitalizeFirstLetter(pokemon.name)}
+            </Typography>
+            
+            {/* Poké Ball with "Caught with" label */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                Caught with:
+              </Typography>
+              <Tooltip title={pokeballName}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  {!imageError ? (
+                    <Avatar 
+                      src={pokeballImageUrl} 
+                      alt={pokeballName}
+                      sx={{ width: 32, height: 32 }}
+                      onError={handleImageError}
+                    />
+                  ) : (
+                    <Chip
+                      icon={<SportsBaseballIcon />}
+                      label={pokeballName}
+                      size="small"
+                      sx={{
+                        bgcolor: pokeballColor.main,
+                        color: pokeballColor.text,
+                        fontWeight: 'bold',
+                        '& .MuiChip-icon': {
+                          color: pokeballColor.text,
+                        },
+                      }}
+                    />
+                  )}
+                </Box>
+              </Tooltip>
+            </Box>
+          </Box>
 
           <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
             {pokemon.types.map((type: { type: { name: string } }, index: number) => (
@@ -184,76 +389,388 @@ const PokemonDetails = () => {
               />
             ))}
           </Box>
-
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2, mb: 2 }}>
-                <Typography variant="h6" gutterBottom>Basic Info</Typography>
-                <Typography>Level: {pokemon.level}</Typography>
-                <Typography>Nature: {pokemon.nature}</Typography>
-              </Paper>
-
-              <Paper sx={{ p: 2, mb: 2 }}>
-                <Typography variant="h6" gutterBottom>Moves</Typography>
-                {pokemon.moves.length > 0 ? (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {pokemon.moves.map((move: string, index: number) => (
-                      <Typography key={`${pokemon.collectionId}-move-${index}`}>
-                        {capitalizeFirstLetter(move)}
-                      </Typography>
-                    ))}
-                  </Box>
-                ) : (
-                  <Typography color="text.secondary">No moves</Typography>
-                )}
-              </Paper>
-
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="h6" gutterBottom>Base Stats</Typography>
-                <Box sx={{ mt: 2 }}>
-                  {pokemon.stats.map((stat) => (
-                    <StatBar
-                      key={stat.stat.name}
-                      statName={stat.stat.name}
-                      value={stat.base_stat}
-                    />
-                  ))}
-                </Box>
-              </Paper>
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2, mb: 2 }}>
-                <Typography variant="h6" gutterBottom>IVs</Typography>
-                {Object.entries(pokemon.ivs).map(([stat, value]: [string, number], index: number) => (
-                  <Box 
-                    key={`${pokemon.collectionId}-iv-${stat}-${index}`} 
-                    sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}
-                  >
-                    <Typography>{capitalizeFirstLetter(stat)}:</Typography>
-                    <Typography>{value}</Typography>
-                  </Box>
-                ))}
-              </Paper>
-
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="h6" gutterBottom>EVs</Typography>
-                {Object.entries(pokemon.evs).map(([stat, value]: [string, number], index: number) => (
-                  <Box 
-                    key={`${pokemon.collectionId}-ev-${stat}-${index}`} 
-                    sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}
-                  >
-                    <Typography>{capitalizeFirstLetter(stat)}:</Typography>
-                    <Typography>{value.toString()}</Typography>
-                  </Box>
-                ))}
-              </Paper>
-            </Grid>
-          </Grid>
         </CardContent>
       </Card>
-    </Box>
-  );
-};
 
-export default PokemonDetails;
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 0, mb: 3, borderRadius: 2, overflow: 'hidden', boxShadow: 2 }}>
+            <Box sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', py: 1.5, px: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Basic Info</Typography>
+            </Box>
+            <List sx={{ py: 0 }}>
+              <ListItem divider>
+                <ListItemIcon>
+                  <FitnessCenterIcon color="primary" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Level" 
+                  secondary={pokemon.level} 
+                  primaryTypographyProps={{ color: 'text.secondary', variant: 'body2' }}
+                  secondaryTypographyProps={{ color: 'text.primary', variant: 'body1', fontWeight: 500 }}
+                />
+              </ListItem>
+              <ListItem divider>
+                <ListItemIcon>
+                  <NatureIcon color="primary" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Nature" 
+                  secondary={pokemon.nature} 
+                  primaryTypographyProps={{ color: 'text.secondary', variant: 'body2' }}
+                  secondaryTypographyProps={{ color: 'text.primary', variant: 'body1', fontWeight: 500 }}
+                />
+              </ListItem>
+              <ListItem divider>
+                <ListItemIcon>
+                  <WcIcon color="primary" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Gender" 
+                  secondary={pokemon.gender || 'N/A'} 
+                  primaryTypographyProps={{ color: 'text.secondary', variant: 'body2' }}
+                  secondaryTypographyProps={{ color: 'text.primary', variant: 'body1', fontWeight: 500 }}
+                />
+              </ListItem>
+              <ListItem>
+                <ListItemIcon>
+                  <AutoFixHighIcon color="primary" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Ability" 
+                  secondary={capitalizeFirstLetter(pokemon.ability || '')} 
+                  primaryTypographyProps={{ color: 'text.secondary', variant: 'body2' }}
+                  secondaryTypographyProps={{ color: 'text.primary', variant: 'body1', fontWeight: 500 }}
+                />
+              </ListItem>
+            </List>
+          </Paper>
+
+          <Paper sx={{ p: 0, mb: 3, borderRadius: 2, overflow: 'hidden', boxShadow: 2 }}>
+            <Box sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', py: 1.5, px: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Collection Details</Typography>
+            </Box>
+            <List sx={{ py: 0 }}>
+              <ListItem divider>
+                <ListItemIcon>
+                  <CalendarMonthIcon color="primary" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Caught Date" 
+                  secondary={formattedCaughtDate} 
+                  primaryTypographyProps={{ color: 'text.secondary', variant: 'body2' }}
+                  secondaryTypographyProps={{ color: 'text.primary', variant: 'body1', fontWeight: 500 }}
+                />
+              </ListItem>
+              <ListItem divider>
+                <ListItemIcon>
+                  <LocationOnIcon color="primary" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Location" 
+                  secondary={pokemon.location || 'Unknown'} 
+                  primaryTypographyProps={{ color: 'text.secondary', variant: 'body2' }}
+                  secondaryTypographyProps={{ color: 'text.primary', variant: 'body1', fontWeight: 500 }}
+                />
+              </ListItem>
+              <ListItem divider>
+                <ListItemIcon>
+                  <VideogameAssetIcon color="primary" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Caught From" 
+                  secondary={pokemon.caughtFrom || 'Main Series'} 
+                  primaryTypographyProps={{ color: 'text.secondary', variant: 'body2' }}
+                  secondaryTypographyProps={{ color: 'text.primary', variant: 'body1', fontWeight: 500 }}
+                />
+              </ListItem>
+              <ListItem divider>
+                <ListItemIcon>
+                  <PersonIcon color="primary" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Original Trainer" 
+                  secondary={pokemon.originalTrainer || 'You'} 
+                  primaryTypographyProps={{ color: 'text.secondary', variant: 'body2' }}
+                  secondaryTypographyProps={{ color: 'text.primary', variant: 'body1', fontWeight: 500 }}
+                />
+              </ListItem>
+              <ListItem>
+                <ListItemIcon>
+                  <BadgeIcon color="primary" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Trainer ID" 
+                  secondary={pokemon.trainerId || 'N/A'} 
+                  primaryTypographyProps={{ color: 'text.secondary', variant: 'body2' }}
+                  secondaryTypographyProps={{ color: 'text.primary', variant: 'body1', fontWeight: 500 }}
+                />
+              </ListItem>
+            </List>
+          </Paper>
+
+          <Paper sx={{ p: 0, mb: 3, borderRadius: 2, overflow: 'hidden', boxShadow: 2 }}>
+            <Box sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', py: 1.5, px: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Comments</Typography>
+            </Box>
+            <Box sx={{ p: 2 }}>
+              {pokemon.comments ? (
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <CommentIcon color="primary" sx={{ mt: 0.5 }} />
+                  <Typography sx={{ whiteSpace: 'pre-wrap', flex: 1 }}>
+                    {pokemon.comments}
+                  </Typography>
+                </Box>
+              ) : (
+                <Box sx={{ display: 'flex', gap: 2, color: 'text.secondary' }}>
+                  <CommentIcon sx={{ mt: 0.5 }} />
+                  <Typography>No comments added.</Typography>
+                </Box>
+              )}
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 0, mb: 3, borderRadius: 2, overflow: 'hidden', boxShadow: 2 }}>
+            <Box sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', py: 1.5, px: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Base Stats</Typography>
+            </Box>
+            <Box sx={{ p: 2 }}>
+              {pokemon.stats.map((stat) => (
+                <StatBar
+                  key={stat.stat.name}
+                  statName={stat.stat.name}
+                  value={stat.base_stat}
+                />
+              ))}
+            </Box>
+          </Paper>
+
+          <Paper sx={{ p: 0, mb: 3, borderRadius: 2, overflow: 'hidden', boxShadow: 2 }}>
+            <Box sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', py: 1.5, px: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>IVs</Typography>
+            </Box>
+            <List sx={{ py: 0 }}>
+              {Object.entries(pokemon.ivs).map(([stat, value]: [string, number], index: number) => (
+                <ListItem 
+                  key={`${pokemon.collectionId}-iv-${stat}-${index}`} 
+                  divider={index < Object.keys(pokemon.ivs).length - 1}
+                >
+                  <ListItemText 
+                    primary={capitalizeFirstLetter(stat)} 
+                    primaryTypographyProps={{ color: 'text.secondary' }}
+                  />
+                  <Typography variant="body1" fontWeight={600} color="primary">
+                    {value}
+                  </Typography>
+                </ListItem>
+              ))}
+            </List>
+          </Paper>
+
+          <Paper sx={{ p: 0, mb: 3, borderRadius: 2, overflow: 'hidden', boxShadow: 2 }}>
+            <Box sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', py: 1.5, px: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>EVs</Typography>
+            </Box>
+            <List sx={{ py: 0 }}>
+              {Object.entries(pokemon.evs).map(([stat, value]: [string, number], index: number) => (
+                <ListItem 
+                  key={`${pokemon.collectionId}-ev-${stat}-${index}`} 
+                  divider={index < Object.keys(pokemon.evs).length - 1}
+                >
+                  <ListItemText 
+                    primary={capitalizeFirstLetter(stat)} 
+                    primaryTypographyProps={{ color: 'text.secondary' }}
+                  />
+                  <Typography variant="body1" fontWeight={600} color="primary">
+                    {value.toString()}
+                  </Typography>
+                </ListItem>
+              ))}
+            </List>
+          </Paper>
+
+          <Paper sx={{ p: 0, borderRadius: 2, overflow: 'hidden', boxShadow: 2 }}>
+            <Box sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', py: 1.5, px: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Moves</Typography>
+            </Box>
+            {pokemon.moves.length > 0 ? (
+              <List sx={{ py: 0 }}>
+                {pokemon.moves.map((move: string, index: number) => (
+                  <ListItem 
+                    key={`${pokemon.collectionId}-move-${index}`}
+                    divider={index < pokemon.moves.length - 1}
+                  >
+                    <ListItemIcon>
+                      <FlashOnIcon color="primary" />
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary={capitalizeFirstLetter(move)}
+                      primaryTypographyProps={{ fontWeight: 500 }}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            ) : (
+              <Box sx={{ p: 2, display: 'flex', gap: 2, color: 'text.secondary' }}>
+                <FlashOnIcon sx={{ mt: 0.5 }} />
+                <Typography>No moves specified.</Typography>
+              </Box>
+            )}
+          </Paper>
+        </Grid>
+      </Grid>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+        <DialogTitle>Edit {pokemon.name}</DialogTitle>
+        <DialogContent dividers>
+          {editedPokemon && (
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Nickname"
+                  name="nickname"
+                  value={editedPokemon.nickname || ''}
+                  onChange={handleInputChange}
+                  margin="normal"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Level"
+                  name="level"
+                  type="number"
+                  value={editedPokemon.level}
+                  onChange={handleInputChange}
+                  margin="normal"
+                  InputProps={{ inputProps: { min: 1, max: 100 } }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Nature</InputLabel>
+                  <Select
+                    name="nature"
+                    value={editedPokemon.nature}
+                    onChange={handleSelectChange}
+                    label="Nature"
+                  >
+                    {['Hardy', 'Lonely', 'Brave', 'Adamant', 'Naughty', 'Bold', 'Docile', 'Relaxed', 'Impish', 'Lax', 'Timid', 'Hasty', 'Serious', 'Jolly', 'Naive', 'Modest', 'Mild', 'Quiet', 'Bashful', 'Rash', 'Calm', 'Gentle', 'Sassy', 'Careful', 'Quirky'].map((nature) => (
+                      <MenuItem key={nature} value={nature}>{nature}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Gender</InputLabel>
+                  <Select
+                    name="gender"
+                    value={editedPokemon.gender || 'N/A'}
+                    onChange={handleSelectChange}
+                    label="Gender"
+                  >
+                    <MenuItem value="Male">Male</MenuItem>
+                    <MenuItem value="Female">Female</MenuItem>
+                    <MenuItem value="N/A">N/A</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Location"
+                  name="location"
+                  value={editedPokemon.location || ''}
+                  onChange={handleInputChange}
+                  margin="normal"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Caught From"
+                  name="caughtFrom"
+                  value={editedPokemon.caughtFrom || ''}
+                  onChange={handleInputChange}
+                  margin="normal"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Poké Ball</InputLabel>
+                  <Select
+                    name="pokeball"
+                    value={editedPokemon.pokeball || 'Poke Ball'}
+                    onChange={handleSelectChange}
+                    label="Poké Ball"
+                  >
+                    {Object.keys(pokeballMap).map((ball) => (
+                      <MenuItem key={ball} value={ball}>{ball}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                                   fullWidth
+                                   label="Original Trainer"
+                                   name="originalTrainer"
+                                   value={editedPokemon.originalTrainer || ''}
+                                   onChange={handleInputChange}
+                                   margin="normal"
+                                 />
+                               </Grid>
+                               <Grid item xs={12} sm={6}>
+                                 <TextField
+                                   fullWidth
+                                   label="Trainer ID"
+                                   name="trainerId"
+                                   value={editedPokemon.trainerId || ''}
+                                   onChange={handleInputChange}
+                                   margin="normal"
+                                 />
+                               </Grid>
+                               <Grid item xs={12} sm={6}>
+                                 <TextField
+                                   fullWidth
+                                   label="Caught Date"
+                                   name="caughtDate"
+                                   type="date"
+                                   value={editedPokemon.caughtDate ? new Date(editedPokemon.caughtDate).toISOString().split('T')[0] : ''}
+                                   onChange={handleInputChange}
+                                   margin="normal"
+                                   InputLabelProps={{ shrink: true }}
+                                 />
+                               </Grid>
+                               <Grid item xs={12}>
+                                 <TextField
+                                   fullWidth
+                                   label="Comments"
+                                   name="comments"
+                                   value={editedPokemon.comments || ''}
+                                   onChange={handleInputChange}
+                                   margin="normal"
+                                   multiline
+                                   rows={4}
+                                 />
+                               </Grid>
+                             </Grid>
+                           )}
+                         </DialogContent>
+                         <DialogActions>
+                           <Button onClick={handleCloseDialog}>Cancel</Button>
+                           <Button onClick={handleSaveChanges} color="primary" variant="contained">
+                             Save Changes
+                           </Button>
+                         </DialogActions>
+                       </Dialog>
+                     </Box>
+                   );
+                 };
+                 
+                 export default PokemonDetails;
