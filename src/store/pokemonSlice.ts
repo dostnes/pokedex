@@ -144,13 +144,21 @@ const pokemonSlice = createSlice({
           nature: action.payload.nature || 'Hardy',
           shiny: action.payload.shiny || false,
           moves: action.payload.moves || [],
-          ivs: action.payload.ivs || {
-            hp: 0, attack: 0, defense: 0,
-            'special-attack': 0, 'special-defense': 0, speed: 0
+          ivs: {
+            hp: action.payload.ivs?.hp || 31,
+            attack: action.payload.ivs?.attack || 31,
+            defense: action.payload.ivs?.defense || 31,
+            specialAttack: action.payload.ivs?.['special-attack'] || action.payload.ivs?.specialAttack || 31,
+            specialDefense: action.payload.ivs?.['special-defense'] || action.payload.ivs?.specialDefense || 31,
+            speed: action.payload.ivs?.speed || 31
           },
-          evs: action.payload.evs || {
-            hp: 0, attack: 0, defense: 0,
-            'special-attack': 0, 'special-defense': 0, speed: 0
+          evs: {
+            hp: action.payload.evs?.hp || 0,
+            attack: action.payload.evs?.attack || 0,
+            defense: action.payload.evs?.defense || 0,
+            specialAttack: action.payload.evs?.['special-attack'] || action.payload.evs?.specialAttack || 0,
+            specialDefense: action.payload.evs?.['special-defense'] || action.payload.evs?.specialDefense || 0,
+            speed: action.payload.evs?.speed || 0
           },
           location: action.payload.location || '',
           caughtFrom: action.payload.caughtFrom || 'Main Series',
@@ -162,7 +170,8 @@ const pokemonSlice = createSlice({
           trainerId: action.payload.trainerId || '',
           caughtDate: action.payload.caughtDate || new Date().toISOString(),
           comments: action.payload.comments || '',
-          timestamp: Date.now() // Add timestamp for sorting
+          project: action.payload.project || 'Other',
+          timestamp: Date.now()
         };
 
         state.myCollection.push(newPokemon);

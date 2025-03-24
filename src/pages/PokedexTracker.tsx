@@ -97,13 +97,13 @@ const PokedexTracker = () => {
     
     // Get unique Pokémon IDs in collection (accounting for multiple of same species)
     // Normalize IDs to handle variant forms
-    const normalizedIds = myCollection.map((p: MyPokemon) => normalizePokedexNumber(p.id));
+    const normalizedIds = myCollection.map((p: MyPokemon) => normalizePokedexNumber(p.id || 0));
     const uniquePokemonIds = new Set(normalizedIds);
     const totalCaught = uniquePokemonIds.size;
     
     // Count unique shiny Pokémon (also normalizing IDs)
     const shinyPokemon = myCollection.filter((p: MyPokemon) => p.shiny);
-    const normalizedShinyIds = shinyPokemon.map((p: MyPokemon) => normalizePokedexNumber(p.id));
+    const normalizedShinyIds = shinyPokemon.map((p: MyPokemon) => normalizePokedexNumber(p.id || 0));
     const uniqueShinyIds = new Set(normalizedShinyIds);
     const totalShiny = uniqueShinyIds.size;
     
@@ -189,7 +189,7 @@ const PokedexTracker = () => {
                 <Typography variant="h6" gutterBottom>
                   Collection Overview
                 </Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                   <Box sx={{ textAlign: 'center', flex: 1 }}>
                     <Typography variant="h3" color="primary" sx={{ fontWeight: 'bold' }}>
                       {stats.totalCaught}
@@ -221,7 +221,7 @@ const PokedexTracker = () => {
                 <Typography variant="subtitle1" gutterBottom>
                   Overall Pokédex Progress
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <Box sx={{ flex: 1, mr: 1 }}>
                     <LinearProgress 
                       variant="determinate" 
@@ -334,7 +334,7 @@ const PokedexTracker = () => {
                     <Typography variant="body2" color="text.secondary" gutterBottom>
                       Shiny Progress
                     </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <Box sx={{ flex: 1, mr: 1 }}>
                         <LinearProgress 
                           variant="determinate" 

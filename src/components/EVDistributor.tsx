@@ -1,19 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
   LinearProgress,
   Paper,
+  Grid,
+  Slider,
 } from '@mui/material';
 import EVSlider from './EVSlider';
 
 // Define a specific type for EVs object
-interface EVStats {
+export interface EVStats {
   hp: number;
   attack: number;
   defense: number;
-  'special-attack': number;
-  'special-defense': number;
+  specialAttack: number;
+  specialDefense: number;
   speed: number;
   [key: string]: number; // Allow additional properties if needed
 }
@@ -29,17 +31,25 @@ const EVDistributor: React.FC<EVDistributorProps> = ({
   onChange,
   maxTotal = 510
 }) => {
-  // Calculate total EVs
-  const totalEVs = Object.values(evs).reduce((sum, value) => sum + value, 0);
+  const [totalEVs, setTotalEVs] = useState(
+    Object.values(evs).reduce((sum, value) => sum + value, 0)
+  );
+
   const remainingEVs = maxTotal - totalEVs;
   
   // Calculate progress percentage
   const progressPercentage = (totalEVs / maxTotal) * 100;
   
-  // Handle individual stat change
-  const handleStatChange = (stat: string, value: number) => {
-    const newEVs = { ...evs, [stat]: value } as EVStats;
-    onChange(newEVs);
+  const handleEVChange = (stat: keyof EVStats, value: number) => {
+    const currentTotal = totalEVs - (evs[stat] || 0);
+    const newValue = Math.min(252, Math.max(0, value));
+    const newTotal = currentTotal + newValue;
+
+    if (newTotal <= 510) {
+      const newEVs = { ...evs, [stat]: newValue };
+      setTotalEVs(newTotal);
+      onChange(newEVs);
+    }
   };
   
   // Determine progress color
@@ -49,6 +59,15 @@ const EVDistributor: React.FC<EVDistributorProps> = ({
     return 'error';
   };
   
+  const formatStatName = (stat: string): string => {
+    switch (stat) {
+      case 'specialAttack': return 'Sp. Atk';
+      case 'specialDefense': return 'Sp. Def';
+      case 'hp': return 'HP';
+      default: return stat.charAt(0).toUpperCase() + stat.slice(1);
+    }
+  };
+
   return (
     <Box>
       <Paper 
@@ -78,16 +97,29 @@ const EVDistributor: React.FC<EVDistributorProps> = ({
         </Typography>
       </Paper>
       
-      {Object.entries(evs).map(([stat, value]) => (
-        <EVSlider
-          key={`ev-${stat}`}
-          stat={stat}
-          value={value}
-          onChange={handleStatChange}
-          totalEVs={totalEVs}
-          maxTotal={maxTotal}
-        />
-      ))}
+      <Grid container spacing={2}>
+        {Object.entries(evs).map(([stat, value]) => (
+          <Grid item xs={12} sm={6} key={stat}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography sx={{ minWidth: 80 }}>
+                {formatStatName(stat)}
+              </Typography>
+              <Slider
+                value={value}
+                min={0}
+                max={252}
+                step={4}
+                onChange={(_, newValue) => handleEVChange(stat as keyof EVStats, newValue as number)}
+                valueLabelDisplay="auto"
+                sx={{ flexGrow: 1 }}
+              />
+              <Typography sx={{ minWidth: 30, textAlign: 'right' }}>
+                {value}
+              </Typography>
+            </Box>
+          </Grid>
+        ))}
+      </Grid>
     </Box>
   );
 };

@@ -35,6 +35,8 @@ import MaleIcon from '@mui/icons-material/Male';
 import FemaleIcon from '@mui/icons-material/Female';
 import PokeballSelect from '../components/PokeballSelect';
 import EVDistributor from '../components/EVDistributor';
+import { moveService } from '../services/moveService';
+import MoveSelector from '../components/MoveSelector';
 
 const ITEMS_PER_PAGE = 25;
 const NATURES = [
@@ -86,15 +88,24 @@ const AddPokemon = () => {
     nature: 'Hardy',
     shiny: false,
     ivs: {
-      hp: 0, attack: 0, defense: 0,
-      'special-attack': 0, 'special-defense': 0, speed: 0
+      hp: 0,
+      attack: 0,
+      defense: 0,
+      specialAttack: 0,
+      specialDefense: 0,
+      speed: 0
     },
     evs: {
-      hp: 0, attack: 0, defense: 0,
-      'special-attack': 0, 'special-defense': 0, speed: 0
+      hp: 0,
+      attack: 0,
+      defense: 0,
+      specialAttack: 0,
+      specialDefense: 0,
+      speed: 0
     },
     moves: ['', '', '', '']
   });
+  const [project, setProject] = useState<'Competitive' | 'Shiny Living Dex' | 'Living Dex' | 'Trophy' | 'Other'>('Other');
 
 // Add this inside your component, after fetching the Pokemon list
 useEffect(() => {
@@ -219,25 +230,12 @@ const getPokemonImageUrl = (pokemon: Pokemon): string => {
         originalTrainer,
         trainerId,
         caughtDate: caughtDate?.toISOString() || dayjs().toISOString(),
-        comments: comment
+        comments: comment,
+        project,
+        timestamp: Date.now()
       };
       console.log('Adding Pokemon with collectionId:', collectionId);
-      const formattedPokemon = {
-        ...selectedPokemon,
-        ...formData,
-        collectionId,
-        moves: formData.moves.filter(move => move !== ''),
-        location,
-        caughtFrom,
-        pokeball,
-        gender,
-        ability: ability.name,
-        originalTrainer,
-        trainerId, 
-        caughtDate: caughtDate?.toISOString() || dayjs().toISOString(),
-        comments: comment
-      };
-      dispatch(addToCollection(formattedPokemon as any));
+      dispatch(addToCollection(newPokemon as any));
       setSelectedPokemon(null);
       setFormData({
         nickname: '',
@@ -245,14 +243,22 @@ const getPokemonImageUrl = (pokemon: Pokemon): string => {
         nature: 'Hardy',
         shiny: false,
         ivs: {
-          hp: 0, attack: 0, defense: 0,
-          'special-attack': 0, 'special-defense': 0, speed: 0
+          hp: 0,
+          attack: 0,
+          defense: 0,
+          specialAttack: 0,
+          specialDefense: 0,
+          speed: 0
         },
         evs: {
-          hp: 0, attack: 0, defense: 0,
-          'special-attack': 0, 'special-defense': 0, speed: 0
+          hp: 0,
+          attack: 0,
+          defense: 0,
+          specialAttack: 0,
+          specialDefense: 0,
+          speed: 0
         },
-        moves: ['', '', '', '']
+        moves: ['tackle', '', '', '']
       });
       setLocation('');
       setCaughtFrom('Main Series');
@@ -263,6 +269,7 @@ const getPokemonImageUrl = (pokemon: Pokemon): string => {
       setTrainerId('');
       setCaughtDate(dayjs());
       setComment('');
+      setProject('Other');
     }
   };
 
@@ -348,16 +355,18 @@ const getPokemonImageUrl = (pokemon: Pokemon): string => {
                 image={getPokemonImageUrl(pokemon)}
                 alt={pokemon.name}
                 sx={{
+                  height: 140,
                   objectFit: 'contain',
+                  imageRendering: 'pixelated',
+                  '&:hover': {
+                    transform: 'scale(1.1)',
+                    transition: 'transform 0.2s ease-in-out'
+                  },
                   bgcolor: '#f5f5f5',
-                  p: 2,
-                  height: '200px',
-                  width: '100%',
-                  backgroundSize: 'contain',
-                  backgroundPosition: 'center',
+                  p: 2
                 }}
               />
-              <CardContent sx={{ flexGrow: 1 }}>
+              <CardContent>
                 <Typography 
                   variant="h6"
                   sx={{
@@ -620,20 +629,44 @@ const getPokemonImageUrl = (pokemon: Pokemon): string => {
   />
 </Grid>
 
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth>
+                      <InputLabel>Project</InputLabel>
+                      <Select
+                        value={project}
+                        label="Project"
+                        onChange={(e) => setProject(e.target.value as typeof project)}
+                      >
+                        <MenuItem value="Competitive">Competitive</MenuItem>
+                        <MenuItem value="Shiny Living Dex">Shiny Living Dex</MenuItem>
+                        <MenuItem value="Living Dex">Living Dex</MenuItem>
+                        <MenuItem value="Trophy">Trophy</MenuItem>
+                        <MenuItem value="Other">Other</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+
                   <Grid item xs={12}>
                     <Typography variant="h6" gutterBottom>Moves</Typography>
                     <Grid container spacing={2}>
                       {formData.moves.map((move, index) => (
-                        <Grid item xs={6} key={index}>
-                          <TextField
-                            fullWidth
-                            label={`Move ${index + 1}`}
-                            value={move}
-                            onChange={(e) => {
+                        <Grid item xs={12} sm={6} key={index}>
+                          <MoveSelector
+                            value={move ? {
+                              name: move,
+                              type: 'Normal', // This will be updated when a move is selected
+                              category: 'Physical',
+                              power: 40,
+                              accuracy: 100,
+                              pp: 35,
+                              description: 'A physical attack.',
+                            } : null}
+                            onChange={(selectedMove) => {
                               const newMoves = [...formData.moves];
-                              newMoves[index] = e.target.value;
+                              newMoves[index] = selectedMove?.name || '';
                               setFormData({ ...formData, moves: newMoves });
                             }}
+                            label={`Move ${index + 1}`}
                           />
                         </Grid>
                       ))}
@@ -647,14 +680,7 @@ const getPokemonImageUrl = (pokemon: Pokemon): string => {
               <Button onClick={handleAddPokemon} variant="contained">Add to Collection</Button>
             </DialogActions>
           </>
-        ) : (
-          <DialogContent>
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
-              <CircularProgress sx={{ mb: 2 }} />
-              <Typography>Loading Pokémon data...</Typography>
-            </Box>
-          </DialogContent>
-        )}
+        ) : null}
       </Dialog>
     </Box>
   );

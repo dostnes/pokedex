@@ -1,5 +1,6 @@
 import { Chip, Box } from '@mui/material';
 import { capitalizeFirstLetter } from '../services/pokeApi';
+import React from 'react';
 
 // Type colors mapping
 const typeColors: { [key: string]: { main: string, text: string } } = {
@@ -28,15 +29,9 @@ interface TypeBadgeProps {
   size?: 'small' | 'medium';
 }
 
-const TypeBadge = ({ type, size = 'medium' }: TypeBadgeProps) => {
+const TypeBadge = React.memo(({ type, size = 'medium' }: TypeBadgeProps) => {
   const typeColor = typeColors[type.toLowerCase()] || { main: '#777777', text: '#FFFFFF' };
   const iconUrl = `/types/${type.toLowerCase()}.svg`;
-  
-  console.log('TypeBadge Debug:', {
-    type,
-    iconUrl,
-    color: typeColor
-  });
 
   return (
     <Chip
@@ -58,6 +53,8 @@ const TypeBadge = ({ type, size = 'medium' }: TypeBadgeProps) => {
         bgcolor: typeColor.main,
         color: typeColor.text,
         fontWeight: 500,
+        minWidth: size === 'small' ? '80px' : '100px',
+        justifyContent: 'center',
         '& .MuiChip-label': {
           px: size === 'small' ? 1 : 1.5,
         },
@@ -65,6 +62,6 @@ const TypeBadge = ({ type, size = 'medium' }: TypeBadgeProps) => {
       size={size}
     />
   );
-};
+});
 
 export default TypeBadge;

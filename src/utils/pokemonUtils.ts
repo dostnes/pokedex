@@ -1,3 +1,6 @@
+import { Pokemon, MyPokemon } from '../types/pokemon';
+import { showdownTheme } from '../theme/showdownTheme';
+
 // Map for variant forms to their base Pokémon numbers
 // This maps the API ID to the National Dex number
 export const variantFormMap: Record<number, number> = {
@@ -167,3 +170,165 @@ export const variantFormMap: Record<number, number> = {
     const parts = name.split('-');
     return parts[0];
   };
+
+export const getAnimatedSpriteUrl = (pokemon: Pokemon | MyPokemon): string => {
+  // Handle MyPokemon type
+  if ('sprites' in pokemon && typeof pokemon.sprites === 'string') {
+    return pokemon.sprites;
+  }
+  
+  // Handle Pokemon type
+  if ('sprites' in pokemon && typeof pokemon.sprites === 'object') {
+    const isShiny = 'shiny' in pokemon && pokemon.shiny;
+    const sprites = pokemon.sprites as {
+      other?: {
+        showdown?: {
+          front_shiny: string | null;
+          front_default: string | null;
+        };
+        home?: {
+          front_shiny: string | null;
+          front_default: string | null;
+        };
+      };
+      front_shiny: string | null;
+      front_default: string | null;
+    };
+    
+    // First try to get the Showdown sprite
+    if (sprites.other?.showdown) {
+      return isShiny 
+        ? sprites.other.showdown.front_shiny || sprites.other.showdown.front_default || ''
+        : sprites.other.showdown.front_default || '';
+    }
+    
+    // If no Showdown sprite, try to get the HOME sprite
+    if (sprites.other?.home) {
+      return isShiny 
+        ? sprites.other.home.front_shiny || sprites.other.home.front_default || ''
+        : sprites.other.home.front_default || '';
+    }
+    
+    // If no HOME sprite, fall back to the default sprite
+    if (sprites.front_default) {
+      return isShiny 
+        ? sprites.front_shiny || sprites.front_default || ''
+        : sprites.front_default || '';
+    }
+  }
+  
+  // If no sprites available, return placeholder
+  return '/placeholder-pokemon.png';
+};
+
+// Add these new functions
+export const getNatureMultiplier = (nature: string, statName: string): number => {
+  // Convert statName to the format used in nature names
+  const statMap: Record<string, string> = {
+    'hp': 'HP',
+    'attack': 'Attack',
+    'defense': 'Defense',
+    'special-attack': 'Sp. Atk',
+    'specialAttack': 'Sp. Atk',
+    'special-defense': 'Sp. Def',
+    'specialDefense': 'Sp. Def',
+    'speed': 'Speed'
+  };
+
+  const mappedStatName = statMap[statName] || statName;
+
+  // Map of natures to their stat changes
+  const natureMap: Record<string, { increased: string; decreased: string }> = {
+    'Hardy': { increased: 'Attack', decreased: 'Attack' },
+    'Lonely': { increased: 'Attack', decreased: 'Defense' },
+    'Brave': { increased: 'Attack', decreased: 'Speed' },
+    'Adamant': { increased: 'Attack', decreased: 'Sp. Atk' },
+    'Naughty': { increased: 'Attack', decreased: 'Sp. Def' },
+    'Bold': { increased: 'Defense', decreased: 'Attack' },
+    'Docile': { increased: 'Defense', decreased: 'Defense' },
+    'Relaxed': { increased: 'Defense', decreased: 'Speed' },
+    'Impish': { increased: 'Defense', decreased: 'Sp. Atk' },
+    'Lax': { increased: 'Defense', decreased: 'Sp. Def' },
+    'Timid': { increased: 'Speed', decreased: 'Attack' },
+    'Hasty': { increased: 'Speed', decreased: 'Defense' },
+    'Serious': { increased: 'Speed', decreased: 'Speed' },
+    'Jolly': { increased: 'Speed', decreased: 'Sp. Atk' },
+    'Naive': { increased: 'Speed', decreased: 'Sp. Def' },
+    'Modest': { increased: 'Sp. Atk', decreased: 'Attack' },
+    'Mild': { increased: 'Sp. Atk', decreased: 'Defense' },
+    'Quiet': { increased: 'Sp. Atk', decreased: 'Speed' },
+    'Bashful': { increased: 'Sp. Atk', decreased: 'Sp. Atk' },
+    'Rash': { increased: 'Sp. Atk', decreased: 'Sp. Def' },
+    'Calm': { increased: 'Sp. Def', decreased: 'Attack' },
+    'Gentle': { increased: 'Sp. Def', decreased: 'Defense' },
+    'Sassy': { increased: 'Sp. Def', decreased: 'Speed' },
+    'Careful': { increased: 'Sp. Def', decreased: 'Sp. Atk' },
+    'Quirky': { increased: 'Sp. Def', decreased: 'Sp. Def' }
+  };
+
+  const statChanges = natureMap[nature];
+  if (!statChanges) return 1.0;
+
+  if (statChanges.increased === mappedStatName) return 1.1;
+  if (statChanges.decreased === mappedStatName) return 0.9;
+  return 1.0;
+};
+
+export const calculateTotalStat = (baseStat: number, ev: number, iv: number, level: number, nature: string, statName: string): number => {
+  // HP calculation is different
+  if (statName === 'hp') {
+    return Math.floor((2 * baseStat + iv + Math.floor(ev / 4)) * level / 100) + level + 10;
+  }
+  
+  // Other stats
+  const natureMultiplier = getNatureMultiplier(nature, statName);
+  return Math.floor((Math.floor((2 * baseStat + iv + Math.floor(ev / 4)) * level / 100) + 5) * natureMultiplier);
+};
+
+export const getStatColor = (statName: string): string => {
+  return showdownTheme.statColors[statName as keyof typeof showdownTheme.statColors] || showdownTheme.secondaryText;
+};
+
+export const mapStatNameToProperty = (statName: string): string => {
+  switch (statName) {
+    case 'hp':
+      return 'hp';
+    case 'attack':
+      return 'attack';
+    case 'defense':
+      return 'defense';
+    case 'special-attack':
+    case 'specialAttack':
+      return 'specialAttack';
+    case 'special-defense':
+    case 'specialDefense':
+      return 'specialDefense';
+    case 'speed':
+      return 'speed';
+    default:
+      return statName;
+  }
+};
+
+export const formatStatName = (statName: string): string => {
+  switch (statName) {
+    case 'hp':
+      return 'HP';
+    case 'attack':
+      return 'Atk';
+    case 'defense':
+      return 'Def';
+    case 'special-attack':
+      return 'SpA';
+    case 'special-defense':
+      return 'SpD';
+    case 'speed':
+      return 'Spe';
+    default:
+      return statName;
+  }
+};
+
+export const capitalizeFirstLetter = (string: string): string => {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+};

@@ -29,6 +29,11 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
+  LinearProgress,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  Link,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditIcon from '@mui/icons-material/Edit';
@@ -44,6 +49,14 @@ import PersonIcon from '@mui/icons-material/Person';
 import BadgeIcon from '@mui/icons-material/Badge';
 import CommentIcon from '@mui/icons-material/Comment';
 import FlashOnIcon from '@mui/icons-material/FlashOn';
+import MaleIcon from '@mui/icons-material/Male';
+import FemaleIcon from '@mui/icons-material/Female';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import StarIcon from '@mui/icons-material/Star';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import SpeedIcon from '@mui/icons-material/Speed';
+import SchoolIcon from '@mui/icons-material/School';
 import { RootState, AppDispatch } from '../store/store';
 import { removeFromCollection, updatePokemon } from '../store/pokemonSlice';
 import { capitalizeFirstLetter } from '../services/pokeApi';
@@ -51,10 +64,22 @@ import { MyPokemon } from '../types/pokemon';
 import TypeBadge from '../components/TypeBadge';
 import StatBar from '../components/StatBar';
 import { format } from 'date-fns';
-import { formatPokedexNumber, isVariantForm, getFormName } from '../utils/pokemonUtils';
+import { 
+  formatPokedexNumber, 
+  isVariantForm, 
+  getFormName, 
+  getAnimatedSpriteUrl, 
+  getNatureMultiplier,
+  mapStatNameToProperty,
+  calculateTotalStat
+} from '../utils/pokemonUtils';
 import EVDistributor from '../components/EVDistributor';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import Snackbar from '@mui/material/Snackbar';
+import { showdownTheme } from '../theme/showdownTheme';
+import MoveSelector from '../components/MoveSelector';
+import MoveDetails from '../components/MoveDetails';
+import { moveService } from '../services/moveService';
 
 // Map of Poké Ball names to their image filenames
 const pokeballMap: Record<string, string> = {
@@ -92,35 +117,14 @@ const getPokeballImageUrl = (pokeball: string): string => {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${pokeballFileName}.png`;
 };
 
-// Fallback colors for Poké Balls (used if image fails to load)
-const pokeballColors: Record<string, { main: string; text: string }> = {
-  'Poke Ball': { main: '#f44336', text: 'white' },
-  'Great Ball': { main: '#2196f3', text: 'white' },
-  'Ultra Ball': { main: '#ffc107', text: 'black' },
-  'Master Ball': { main: '#9c27b0', text: 'white' },
-  'Safari Ball': { main: '#4caf50', text: 'white' },
-  'Level Ball': { main: '#ff9800', text: 'black' },
-  'Lure Ball': { main: '#03a9f4', text: 'white' },
-  'Moon Ball': { main: '#673ab7', text: 'white' },
-  'Friend Ball': { main: '#8bc34a', text: 'black' },
-  'Love Ball': { main: '#e91e63', text: 'white' },
-  'Heavy Ball': { main: '#607d8b', text: 'white' },
-  'Fast Ball': { main: '#ff5722', text: 'white' },
-  'Sport Ball': { main: '#795548', text: 'white' },
-  'Premier Ball': { main: '#f5f5f5', text: 'black' },
-  'Repeat Ball': { main: '#f44336', text: 'white' },
-  'Timer Ball': { main: '#ffeb3b', text: 'black' },
-  'Nest Ball': { main: '#8bc34a', text: 'black' },
-  'Net Ball': { main: '#00bcd4', text: 'white' },
-  'Dive Ball': { main: '#0288d1', text: 'white' },
-  'Luxury Ball': { main: '#212121', text: 'white' },
-  'Heal Ball': { main: '#f48fb1', text: 'black' },
-  'Quick Ball': { main: '#ffc107', text: 'black' },
-  'Dusk Ball': { main: '#424242', text: 'white' },
-  'Cherish Ball': { main: '#d32f2f', text: 'white' },
-  'Dream Ball': { main: '#9c27b0', text: 'white' },
-  'Beast Ball': { main: '#3f51b5', text: 'white' },
-};
+// Fix the pokeball colors type
+const pokeballColors = showdownTheme.pokeballColors as Record<string, { main: string }>;
+
+// Remove the duplicate showdownTheme object
+// Remove the duplicate getStatColor function
+// Remove the duplicate mapStatNameToProperty function
+// Remove the duplicate formatStatName function
+// Remove the duplicate capitalizeFirstLetter function
 
 const PokemonDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -128,8 +132,11 @@ const PokemonDetails = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editedPokemon, setEditedPokemon] = useState<MyPokemon | null>(null);
   const [imageError, setImageError] = useState(false);
+  const [showCopySnackbar, setShowCopySnackbar] = useState(false);
+  const [moveData, setMoveData] = useState<Record<string, any>>({});
 
   // Enhanced debugging logs
   console.log('Debug URL info:', {
@@ -139,110 +146,6 @@ const PokemonDetails = () => {
     id
   });
 
-
-  const [showCopySnackbar, setShowCopySnackbar] = useState(false);
-// Add this function inside your PokemonDetails component
-const generateShowdownImport = (pokemon: MyPokemon): string => {
-  // Start with the Pokémon name or nickname
-  let showdownText = pokemon.nickname || capitalizeFirstLetter(pokemon.name);
-  
-  // Add gender if specified
-  if (pokemon.gender && pokemon.gender !== 'N/A') {
-    showdownText += ` (${pokemon.gender})`;
-  }
-  
-  // Add item if available (not in your current data model, but could be added)
-  // if (pokemon.item) {
-  //   showdownText += ` @ ${pokemon.item}`;
-  // }
-  
-  showdownText += '\n';
-  
-  // Add ability
-  showdownText += `Ability: ${capitalizeFirstLetter(pokemon.ability || 'Unknown')}\n`;
-  
-  // Add level if not 100
-  if (pokemon.level && pokemon.level < 100) {
-    showdownText += `Level: ${pokemon.level}\n`;
-  }
-  
-  // Add shiny status if shiny
-  if (pokemon.shiny) {
-    showdownText += 'Shiny: Yes\n';
-  }
-  
-  // Add Tera Type (default to Grass as requested)
-  showdownText += 'Tera Type: Grass\n';
-  
-  // Add EVs if any are set
-  const evs = pokemon.evs;
-  const evEntries = Object.entries(evs).filter(([_, value]) => value > 0);
-  
-  if (evEntries.length > 0) {
-    const evString = evEntries
-      .map(([stat, value]) => {
-        // Format the stat name for EVs
-        let formattedStat;
-        switch (stat.toLowerCase()) {
-          case 'hp': formattedStat = 'HP'; break;
-          case 'attack': formattedStat = 'Atk'; break;
-          case 'defense': formattedStat = 'Def'; break;
-          case 'special-attack': formattedStat = 'SpA'; break;
-          case 'special-defense': formattedStat = 'SpD'; break;
-          case 'speed': formattedStat = 'Spe'; break;
-          default: formattedStat = stat;
-        }
-        return `${value} ${formattedStat}`;
-      })
-      .join(' / ');
-    
-    showdownText += `EVs: ${evString}\n`;
-  }
-  
-  // Add IVs if any are not 31
-  const ivs = pokemon.ivs;
-  const ivEntries = Object.entries(ivs).filter(([_, value]) => value < 31);
-  
-  if (ivEntries.length > 0) {
-    const ivString = ivEntries
-      .map(([stat, value]) => {
-        // Format the stat name for IVs (same as EVs)
-        let formattedStat;
-        switch (stat.toLowerCase()) {
-          case 'hp': formattedStat = 'HP'; break;
-          case 'attack': formattedStat = 'Atk'; break;
-          case 'defense': formattedStat = 'Def'; break;
-          case 'special-attack': formattedStat = 'SpA'; break;
-          case 'special-defense': formattedStat = 'SpD'; break;
-          case 'speed': formattedStat = 'Spe'; break;
-          default: formattedStat = stat;
-        }
-        return `${value} ${formattedStat}`;
-      })
-      .join(' / ');
-    
-    showdownText += `IVs: ${ivString}\n`;
-  }
-  
-  // Add nature
-  showdownText += `${pokemon.nature} Nature\n`;
-  
-  // Add moves
-  if (pokemon.moves && pokemon.moves.length > 0) {
-    pokemon.moves.forEach(move => {
-      if (move && move.trim()) {
-        showdownText += `- ${capitalizeFirstLetter(move)}\n`;
-      }
-    });
-  } else {
-    // Add placeholder moves if none are specified
-    showdownText += '- (No Moves)\n';
-  }
-  
-  return showdownText;
-};
-
-
   const myCollection = useSelector((state: RootState) => state.pokemon.myCollection);
 
   // Find pokemon using collectionId
@@ -250,11 +153,38 @@ const generateShowdownImport = (pokemon: MyPokemon): string => {
     ? myCollection.find((p: MyPokemon) => p.collectionId === id)
     : null;
 
+  // Check for edit query parameter and open dialog if present
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    if (searchParams.get('edit') === 'true' && pokemon) {
+      handleEditClick();
+    }
+  }, [location.search, pokemon]);
+
   // Update editedPokemon when pokemon changes
   useEffect(() => {
     if (pokemon) {
       setEditedPokemon(pokemon);
       setImageError(false); // Reset image error state when pokemon changes
+    }
+  }, [pokemon]);
+
+  // Load move data when pokemon changes
+  useEffect(() => {
+    if (pokemon?.moves) {
+      const loadMoveData = async () => {
+        const data: Record<string, any> = {};
+        for (const move of pokemon.moves) {
+          if (move) {
+            const moveInfo = moveService.getMoveByName(move);
+            if (moveInfo) {
+              data[move] = moveInfo;
+            }
+          }
+        }
+        setMoveData(data);
+      };
+      loadMoveData();
     }
   }, [pokemon]);
 
@@ -289,6 +219,10 @@ const generateShowdownImport = (pokemon: MyPokemon): string => {
     }
   };
 
+  const handleRemoveClick = () => {
+    setIsDeleteDialogOpen(true);
+  };
+
   const handleCopyToShowdown = () => {
     // Add a type guard to check if pokemon exists
     if (!pokemon) {
@@ -306,11 +240,18 @@ const generateShowdownImport = (pokemon: MyPokemon): string => {
       });
   };
 
-
-  
   const handleEditClick = () => {
     if (pokemon) {
-      setEditedPokemon(pokemon);
+      const moves = [...pokemon.moves];
+      // If no moves are set, set Tackle as the first move
+      if (!moves[0]) {
+        moves[0] = 'tackle';
+      }
+      setEditedPokemon({
+        ...pokemon,
+        moves,
+        project: pokemon.project || 'Other'
+      });
       setIsEditDialogOpen(true);
     }
   };
@@ -380,13 +321,115 @@ const generateShowdownImport = (pokemon: MyPokemon): string => {
   const pokeballImageUrl = getPokeballImageUrl(pokeballName);
   const pokeballColor = pokeballColors[pokeballName] || pokeballColors['Poke Ball'];
 
+  // Add this function inside your PokemonDetails component
+  const generateShowdownImport = (pokemon: MyPokemon): string => {
+    // Start with the Pokémon name or nickname
+    let showdownText = pokemon.nickname || capitalizeFirstLetter(pokemon.name);
+    
+    // Add item if available (not in your current data model, but could be added)
+    // if (pokemon.item) {
+    //   showdownText += ` @ ${pokemon.item}`;
+    // }
+    
+    showdownText += '\n';
+    
+    // Add ability
+    showdownText += `Ability: ${capitalizeFirstLetter(pokemon.ability || 'Unknown')}\n`;
+    
+    // Add level if not 100
+    if (pokemon.level && pokemon.level < 100) {
+      showdownText += `Level: ${pokemon.level}\n`;
+    }
+    
+    // Add shiny status if shiny
+    if (pokemon.shiny) {
+      showdownText += 'Shiny: Yes\n';
+    }
+    
+    // Add Tera Type (default to Grass as requested)
+    showdownText += 'Tera Type: Grass\n';
+    
+    // Add EVs if any are set
+    const evs = pokemon.evs || {};
+    const evEntries = Object.entries(evs).filter(([_, value]) => value > 0);
+    
+    if (evEntries.length > 0) {
+      const evString = evEntries
+        .map(([stat, value]) => {
+          // Format the stat name for EVs
+          let formattedStat;
+          switch (stat.toLowerCase()) {
+            case 'hp': formattedStat = 'HP'; break;
+            case 'attack': formattedStat = 'Atk'; break;
+            case 'defense': formattedStat = 'Def'; break;
+            case 'special-attack': formattedStat = 'SpA'; break;
+            case 'special-defense': formattedStat = 'SpD'; break;
+            case 'speed': formattedStat = 'Spe'; break;
+            default: formattedStat = stat;
+          }
+          return `${value} ${formattedStat}`;
+        })
+        .join(' / ');
+      
+      showdownText += `EVs: ${evString}\n`;
+    }
+    
+    // Add IVs if any are not 31
+    const ivs = pokemon.ivs || {};
+    const ivEntries = Object.entries(ivs).filter(([_, value]) => value < 31);
+    
+    if (ivEntries.length > 0) {
+      const ivString = ivEntries
+        .map(([stat, value]) => {
+          // Format the stat name for IVs (same as EVs)
+          let formattedStat;
+          switch (stat.toLowerCase()) {
+            case 'hp': formattedStat = 'HP'; break;
+            case 'attack': formattedStat = 'Atk'; break;
+            case 'defense': formattedStat = 'Def'; break;
+            case 'special-attack': formattedStat = 'SpA'; break;
+            case 'special-defense': formattedStat = 'SpD'; break;
+            case 'speed': formattedStat = 'Spe'; break;
+            default: formattedStat = stat;
+          }
+          return `${value} ${formattedStat}`;
+        })
+        .join(' / ');
+      
+      showdownText += `IVs: ${ivString}\n`;
+    }
+    
+    // Add nature
+    showdownText += `${pokemon.nature} Nature\n`;
+    
+    // Add moves
+    if (pokemon.moves && pokemon.moves.length > 0) {
+      pokemon.moves.forEach(move => {
+        if (move && move.trim()) {
+          showdownText += `- ${capitalizeFirstLetter(move)}\n`;
+        }
+      });
+    } else {
+      // Add placeholder moves if none are specified
+      showdownText += '- (No Moves)\n';
+    }
+    
+    return showdownText;
+  };
+
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+    <Box sx={{ 
+      bgcolor: showdownTheme.background,
+      minHeight: 'auto',
+      p: 1,
+      fontFamily: showdownTheme.fontFamily
+    }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
         <Button
           startIcon={<ArrowBackIcon />}
           onClick={() => navigate('/')}
           variant="outlined"
+          sx={{ fontFamily: showdownTheme.fontFamily }}
         >
           Back to Collection
         </Button>
@@ -395,7 +438,7 @@ const generateShowdownImport = (pokemon: MyPokemon): string => {
           <Button
             startIcon={<ContentCopyIcon />}
             onClick={handleCopyToShowdown}
-            sx={{ mr: 1 }}
+            sx={{ mr: 1, fontFamily: showdownTheme.fontFamily }}
             variant="outlined"
             color="secondary"
           >
@@ -411,9 +454,10 @@ const generateShowdownImport = (pokemon: MyPokemon): string => {
           <Button
             color="error"
             variant="contained"
-            onClick={handleRemove}
+            onClick={handleRemoveClick}
+            sx={{ fontFamily: showdownTheme.fontFamily }}
           >
-            Remove from Collection
+            Remove
           </Button>
         </Box>
       </Box>
@@ -425,361 +469,669 @@ const generateShowdownImport = (pokemon: MyPokemon): string => {
   message="Copied to clipboard for Pokémon Showdown!"
 />
 
-      <Card sx={{ position: 'relative', mb: 3, overflow: 'visible', boxShadow: 3 }}>
+      <Grid container spacing={1}>
+        <Grid item xs={12} md={4}>
+          <Card sx={{ 
+            bgcolor: showdownTheme.cardBackground,
+            border: `1px solid ${showdownTheme.border}`,
+            boxShadow: 'none'
+          }}>
+            <CardContent sx={{ p: 2 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
         <Typography 
           variant="body2" 
           sx={{ 
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            color: 'rgba(0, 0, 0, 0.6)',
-            fontFamily: 'cursive',
-            zIndex: 2,
-            fontSize: '1.1rem',
-            backgroundColor: 'rgba(255, 255, 255, 0.8)',
-            padding: '2px 6px',
-            borderRadius: '4px',
-            fontWeight: 500,
-          }}
-        >
-          {formatPokedexNumber(pokemon.id)}
-          {isVariantForm(pokemon.id) && (
+                    color: showdownTheme.secondaryText,
+                    fontFamily: showdownTheme.fontFamily,
+                    fontSize: '0.9rem',
+                    mb: 0.5
+                  }}
+                >
+                  {formatPokedexNumber(pokemon.id ?? 0)}
+                  {isVariantForm(pokemon.id ?? 0) && (
             <Typography
               component="span"
               sx={{
                 fontSize: '0.8rem',
                 display: 'block',
                 textAlign: 'center',
-                color: 'text.secondary'
+                        color: showdownTheme.secondaryText,
+                        fontFamily: showdownTheme.fontFamily
               }}
               >
                 {getFormName(pokemon.name) || 'Form'}
             </Typography>
           )}
         </Typography>
+                <CardMedia
+                  component="img"
+                  image={getAnimatedSpriteUrl(pokemon)}
+                  alt={pokemon.name}
+                  sx={{
+                    height: 120,
+                    width: 120,
+                    objectFit: 'contain',
+                    imageRendering: 'pixelated',
+                    bgcolor: 'transparent'
+                  }}
+                />
+                <Typography 
+                  variant="h6" 
+                  sx={{ 
+                    fontWeight: 'bold',
+                    fontFamily: showdownTheme.fontFamily,
+                    fontSize: '1.1rem'
+                  }}
+                >
+                  {pokemon.nickname || capitalizeFirstLetter(pokemon.name)}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
+                  {pokemon.types.map((type: { type: { name: string } }, index: number) => (
+                    <TypeBadge
+                      key={`${pokemon.collectionId}-type-${type.type.name}-${index}`}
+                      type={type.type.name}
+                    />
+                  ))}
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
 
+          {/* Status Indicators Box */}
+          <Card sx={{ 
+            bgcolor: showdownTheme.cardBackground,
+            border: `1px solid ${showdownTheme.border}`,
+            boxShadow: 'none',
+            mt: 1
+          }}>
+            <CardContent sx={{ p: 1.5 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {Object.values(pokemon.ivs).every(iv => iv === 31) && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <EmojiEventsIcon sx={{ color: '#FFD700', fontSize: '1.2rem' }} />
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#FFD700',
+                        fontFamily: showdownTheme.fontFamily,
+                        fontSize: '0.9rem',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      Perfect IVs
+                    </Typography>
+                  </Box>
+                )}
+                {pokemon.abilities?.find(a => a.ability.name === pokemon.ability)?.is_hidden && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AutoFixHighIcon sx={{ color: '#9C27B0', fontSize: '1.2rem' }} />
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#9C27B0',
+                        fontFamily: showdownTheme.fontFamily,
+                        fontSize: '0.9rem',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      Hidden Ability
+                    </Typography>
+                  </Box>
+                )}
+                {pokemon.level === 100 && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AutoAwesomeIcon sx={{ color: '#2196F3', fontSize: '1.2rem' }} />
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#2196F3',
+                        fontFamily: showdownTheme.fontFamily,
+                        fontSize: '0.9rem',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      Level 100
+                    </Typography>
+                  </Box>
+                )}
         {pokemon.shiny && (
-          <Box
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <StarIcon sx={{ color: '#FFD700', fontSize: '1.2rem' }} />
+                    <Typography 
+                      variant="body2" 
             sx={{
-              position: 'absolute',
-              top: 8,
-              right: 70,
-              bgcolor: 'warning.main',
-              color: 'warning.contrastText',
-              px: 1,
-              py: 0.5,
-              borderRadius: 1,
-              fontSize: '0.75rem',
-              fontWeight: 'bold',
-              zIndex: 1,
+                        color: '#FFD700',
+                        fontFamily: showdownTheme.fontFamily,
+                        fontSize: '0.9rem',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      Shiny
+                    </Typography>
+                  </Box>
+                )}
+                {Object.values(pokemon.evs).every(ev => ev === 252) && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <SpeedIcon sx={{ color: '#4CAF50', fontSize: '1.2rem' }} />
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#4CAF50',
+                        fontFamily: showdownTheme.fontFamily,
+                        fontSize: '0.9rem',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      Max EVs
+                    </Typography>
+                  </Box>
+                )}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                  <Link 
+                    href={`https://www.smogon.com/dex/sv/pokemon/${pokemon.name.toLowerCase()}/`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{ 
               display: 'flex',
               alignItems: 'center',
-              gap: 0.5,
-              boxShadow: 1,
-            }}
-          >
-            <span>✨</span>
-            <span>SHINY</span>
+                      gap: 1,
+                      textDecoration: 'none',
+                      color: showdownTheme.accent,
+                      '&:hover': {
+                        color: showdownTheme.header
+                      }
+                    }}
+                  >
+                    <SchoolIcon sx={{ fontSize: '1.2rem' }} />
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        fontFamily: showdownTheme.fontFamily,
+                        fontSize: '0.9rem',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      Smogon Strategy
+                    </Typography>
+                  </Link>
           </Box>
-        )}
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
 
-        <CardMedia
-          component="img"
-          image={pokemon.shiny 
-            ? pokemon.sprites.other.home.front_shiny 
-            : pokemon.sprites.other.home.front_default}
-          alt={pokemon.name}
+        <Grid item xs={12} md={8}>
+          <Grid container spacing={1}>
+            {/* First row: Details and Moves side by side */}
+            <Grid item xs={12} sm={6}>
+              <Card sx={{ 
+                bgcolor: showdownTheme.cardBackground,
+                border: `1px solid ${showdownTheme.border}`,
+                boxShadow: 'none',
+                height: '100%' // Make the card take full height
+              }}>
+                <CardContent sx={{ p: 1.5 }}>
+                  <Typography 
+                    variant="h6" 
           sx={{
-            height: 300,
-            objectFit: 'contain',
-            bgcolor: '#f5f5f5',
-            p: 2,
-          }}
-        />
-
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h4" sx={{ flexGrow: 1, fontWeight: 600 }}>
-              {pokemon.nickname || capitalizeFirstLetter(pokemon.name)}
+                      color: showdownTheme.header,
+                      fontFamily: showdownTheme.fontFamily,
+                      fontSize: '1rem',
+                      fontWeight: 'bold',
+                      mb: 1
+                    }}
+                  >
+                    Details
             </Typography>
-            
-            {/* Poké Ball with "Caught with" label */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  <Grid container spacing={1}>
+                    <Grid item xs={12}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: showdownTheme.secondaryText,
+                            fontFamily: showdownTheme.fontFamily,
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          Level: {pokemon.level}
+                        </Typography>
+                        {pokemon.gender === 'male' ? (
+                          <MaleIcon sx={{ color: '#3273DC', fontSize: '1rem' }} />
+                        ) : pokemon.gender === 'female' ? (
+                          <FemaleIcon sx={{ color: '#FF6B6B', fontSize: '1rem' }} />
+                        ) : (
+                          <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>N/A</Typography>
+                        )}
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          color: showdownTheme.secondaryText,
+                          fontFamily: showdownTheme.fontFamily,
+                          fontSize: '0.8rem',
+                          mb: 0.5
+                        }}
+                      >
+                        Nature: {pokemon.nature}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: showdownTheme.secondaryText,
+                            fontFamily: showdownTheme.fontFamily,
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          Ability: {capitalizeFirstLetter(pokemon.ability || '')}
+                        </Typography>
+                        {pokemon.abilities?.find(a => a.ability.name === pokemon.ability)?.is_hidden && (
+                          <Typography 
+                            component="span" 
+                            sx={{ 
+                              color: showdownTheme.accent,
+                              fontSize: '0.7rem',
+                              fontStyle: 'italic'
+                            }}
+                          >
+                            (Hidden)
+                          </Typography>
+                        )}
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: showdownTheme.secondaryText,
+                            fontFamily: showdownTheme.fontFamily,
+                            fontSize: '0.8rem'
+                          }}
+                        >
                 Caught with:
               </Typography>
-              <Tooltip title={pokeballName}>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   {!imageError ? (
                     <Avatar 
                       src={pokeballImageUrl} 
                       alt={pokeballName}
-                      sx={{ width: 32, height: 32 }}
+                            sx={{ width: 16, height: 16 }}
                       onError={handleImageError}
                     />
                   ) : (
-                    <Chip
-                      icon={<SportsBaseballIcon />}
-                      label={pokeballName}
-                      size="small"
+                          <SportsBaseballIcon sx={{ fontSize: '1rem', color: pokeballColor.main }} />
+                        )}
+                        <Typography 
+                          variant="body2" 
                       sx={{
-                        bgcolor: pokeballColor.main,
-                        color: pokeballColor.text,
-                        fontWeight: 'bold',
-                        '& .MuiChip-icon': {
-                          color: pokeballColor.text,
-                        },
-                      }}
-                    />
-                  )}
+                            color: showdownTheme.secondaryText,
+                            fontFamily: showdownTheme.fontFamily,
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          {pokeballName}
+                        </Typography>
                 </Box>
-              </Tooltip>
-            </Box>
-          </Box>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
 
-          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-            {pokemon.types.map((type: { type: { name: string } }, index: number) => (
-              <TypeBadge
-                key={`${pokemon.collectionId}-type-${type.type.name}-${index}`}
-                type={type.type.name}
-              />
-            ))}
-          </Box>
+            <Grid item xs={12} sm={6}>
+              <Card sx={{ 
+                bgcolor: showdownTheme.cardBackground,
+                border: `1px solid ${showdownTheme.border}`,
+                boxShadow: 'none',
+                height: '100%' // Make the card take full height
+              }}>
+                <CardContent sx={{ p: 1.5 }}>
+                  <Typography 
+                    variant="h6" 
+                    sx={{ 
+                      color: showdownTheme.header,
+                      fontFamily: showdownTheme.fontFamily,
+                      fontSize: '1rem',
+                      fontWeight: 'bold',
+                      mb: 1
+                    }}
+                  >
+                    Moves
+                  </Typography>
+                  <Grid container spacing={1}>
+                    {pokemon.moves?.map((move, index) => (
+                      <Grid item xs={12} key={index}>
+                        {move ? (
+                          <MoveDetails
+                            move={moveData[move] ? {
+                              name: moveData[move].name,
+                              type: moveData[move].type
+                            } : {
+                              name: move,
+                              type: 'Normal'
+                            }}
+                          />
+                        ) : (
+                          <Typography 
+                            variant="body2"
+                            sx={{ 
+                              fontFamily: showdownTheme.fontFamily,
+                              fontSize: '0.8rem',
+                              color: showdownTheme.secondaryText,
+                              fontStyle: 'italic',
+                            }}
+                          >
+                            No move
+                          </Typography>
+                        )}
+                      </Grid>
+                    ))}
+                  </Grid>
         </CardContent>
       </Card>
+            </Grid>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 0, mb: 3, borderRadius: 2, overflow: 'hidden', boxShadow: 2 }}>
-            <Box sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', py: 1.5, px: 2 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>Basic Info</Typography>
+            {/* Spread section with combined stats */}
+            <Grid item xs={12} sm={6}>
+              <Card sx={{ 
+                bgcolor: showdownTheme.cardBackground,
+                border: `1px solid ${showdownTheme.border}`,
+                boxShadow: 'none',
+                height: '100%' // Make the card take full height
+              }}>
+                <CardContent sx={{ p: 1.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography 
+                      variant="h6" 
+                      sx={{ 
+                        color: showdownTheme.header,
+                        fontFamily: showdownTheme.fontFamily,
+                        fontSize: '1rem',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      Spread
+                    </Typography>
             </Box>
-            <List sx={{ py: 0 }}>
-              <ListItem divider>
-                <ListItemIcon>
-                  <FitnessCenterIcon color="primary" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Level" 
-                  secondary={pokemon.level} 
-                  primaryTypographyProps={{ color: 'text.secondary', variant: 'body2' }}
-                  secondaryTypographyProps={{ color: 'text.primary', variant: 'body1', fontWeight: 500 }}
-                />
-              </ListItem>
-              <ListItem divider>
-                <ListItemIcon>
-                  <NatureIcon color="primary" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Nature" 
-                  secondary={pokemon.nature} 
-                  primaryTypographyProps={{ color: 'text.secondary', variant: 'body2' }}
-                  secondaryTypographyProps={{ color: 'text.primary', variant: 'body1', fontWeight: 500 }}
-                />
-              </ListItem>
-              <ListItem divider>
-                <ListItemIcon>
-                  <WcIcon color="primary" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Gender" 
-                  secondary={pokemon.gender || 'N/A'} 
-                  primaryTypographyProps={{ color: 'text.secondary', variant: 'body2' }}
-                  secondaryTypographyProps={{ color: 'text.primary', variant: 'body1', fontWeight: 500 }}
-                />
-              </ListItem>
-              <ListItem>
-                <ListItemIcon>
-                  <AutoFixHighIcon color="primary" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Ability" 
-                  secondary={capitalizeFirstLetter(pokemon.ability || '')} 
-                  primaryTypographyProps={{ color: 'text.secondary', variant: 'body2' }}
-                  secondaryTypographyProps={{ color: 'text.primary', variant: 'body1', fontWeight: 500 }}
-                />
-              </ListItem>
-            </List>
-          </Paper>
+                  <Grid container spacing={0.5}>
+                    {pokemon.stats?.map((stat) => {
+                      const statName = stat.stat.name;
+                      const baseStat = Number(pokemon.stats.find(s => s.stat.name === statName)?.base_stat ?? 0);
+                      const propertyName = mapStatNameToProperty(statName) as keyof typeof pokemon.evs;
+                      const ev = Number(pokemon.evs[propertyName] ?? pokemon.evs[statName as keyof typeof pokemon.evs] ?? 0);
+                      const iv = Number(pokemon.ivs[propertyName] ?? pokemon.ivs[statName as keyof typeof pokemon.ivs] ?? 31);
+                      const level = pokemon.level ?? 100;
+                      
+                      // Calculate total stat using the imported function
+                      const total = calculateTotalStat(baseStat, ev, iv, level, pokemon.nature, statName);
+                      const natureMultiplier = getNatureMultiplier(pokemon.nature, statName);
 
-          <Paper sx={{ p: 0, mb: 3, borderRadius: 2, overflow: 'hidden', boxShadow: 2 }}>
-            <Box sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', py: 1.5, px: 2 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>Collection Details</Typography>
-            </Box>
-            <List sx={{ py: 0 }}>
-              <ListItem divider>
-                <ListItemIcon>
-                  <CalendarMonthIcon color="primary" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Caught Date" 
-                  secondary={formattedCaughtDate} 
-                  primaryTypographyProps={{ color: 'text.secondary', variant: 'body2' }}
-                  secondaryTypographyProps={{ color: 'text.primary', variant: 'body1', fontWeight: 500 }}
-                />
-              </ListItem>
-              <ListItem divider>
-                <ListItemIcon>
-                  <LocationOnIcon color="primary" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Location" 
-                  secondary={pokemon.location || 'Unknown'} 
-                  primaryTypographyProps={{ color: 'text.secondary', variant: 'body2' }}
-                  secondaryTypographyProps={{ color: 'text.primary', variant: 'body1', fontWeight: 500 }}
-                />
-              </ListItem>
-              <ListItem divider>
-                <ListItemIcon>
-                  <VideogameAssetIcon color="primary" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Caught From" 
-                  secondary={pokemon.caughtFrom || 'Main Series'} 
-                  primaryTypographyProps={{ color: 'text.secondary', variant: 'body2' }}
-                  secondaryTypographyProps={{ color: 'text.primary', variant: 'body1', fontWeight: 500 }}
-                />
-              </ListItem>
-              <ListItem divider>
-                <ListItemIcon>
-                  <PersonIcon color="primary" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Original Trainer" 
-                  secondary={pokemon.originalTrainer || 'You'} 
-                  primaryTypographyProps={{ color: 'text.secondary', variant: 'body2' }}
-                  secondaryTypographyProps={{ color: 'text.primary', variant: 'body1', fontWeight: 500 }}
-                />
-              </ListItem>
-              <ListItem>
-                <ListItemIcon>
-                  <BadgeIcon color="primary" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Trainer ID" 
-                  secondary={pokemon.trainerId || 'N/A'} 
-                  primaryTypographyProps={{ color: 'text.secondary', variant: 'body2' }}
-                  secondaryTypographyProps={{ color: 'text.primary', variant: 'body1', fontWeight: 500 }}
-                />
-              </ListItem>
-            </List>
-          </Paper>
-
-          <Paper sx={{ p: 0, mb: 3, borderRadius: 2, overflow: 'hidden', boxShadow: 2 }}>
-            <Box sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', py: 1.5, px: 2 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>Comments</Typography>
-            </Box>
-            <Box sx={{ p: 2 }}>
-              {pokemon.comments ? (
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <CommentIcon color="primary" sx={{ mt: 0.5 }} />
-                  <Typography sx={{ whiteSpace: 'pre-wrap', flex: 1 }}>
-                    {pokemon.comments}
+                      return (
+                        <Grid item xs={12} key={statName}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                width: 60,
+                                fontFamily: showdownTheme.fontFamily,
+                                fontSize: '0.8rem',
+                                color: natureMultiplier === 1.1 ? '#4CAF50' : 
+                                       natureMultiplier === 0.9 ? '#F44336' : 
+                                       showdownTheme.text
+                              }}
+                            >
+                              {statName === 'hp' ? 'HP' :
+                               statName === 'attack' ? 'Attack' :
+                               statName === 'defense' ? 'Defense' :
+                               statName === 'special-attack' ? 'Sp. Atk.' :
+                               statName === 'special-defense' ? 'Sp. Def.' :
+                               statName === 'speed' ? 'Speed' : statName}
                   </Typography>
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                width: 30,
+                                textAlign: 'right',
+                                fontFamily: showdownTheme.fontFamily,
+                                fontSize: '0.8rem'
+                              }}
+                            >
+                              {baseStat}
+                            </Typography>
+                            <Box sx={{ flexGrow: 1 }}>
+                              <LinearProgress 
+                                variant="determinate" 
+                                value={(() => {
+                                  // Calculate the effective stat value (base + EVs)
+                                  const effectiveStat = baseStat + (ev / 4);
+                                  // Scale to a percentage (max stat in gen 9 is 255)
+                                  return (effectiveStat / 255) * 100;
+                                })()}
+                                sx={{ 
+                                  height: 6,
+                                  borderRadius: 3,
+                                  bgcolor: '#E0E0E0',
+                                  '& .MuiLinearProgress-bar': {
+                                    bgcolor: (() => {
+                                      // Calculate the effective stat value (base + EVs)
+                                      const effectiveStat = baseStat + (ev / 4);
+                                      
+                                      // Different thresholds for different stat types
+                                      if (statName === 'hp') {
+                                        if (effectiveStat >= 100) return '#00C853';      // Green for very high HP
+                                        if (effectiveStat >= 85) return '#64DD17';       // Light green for high HP
+                                        if (effectiveStat >= 70) return '#FFD600';       // Yellow for good HP
+                                        if (effectiveStat >= 55) return '#FFA000';       // Orange for average HP
+                                        if (effectiveStat >= 40) return '#FF6D00';       // Dark orange for below average HP
+                                        return '#F44336';                                // Red for low HP
+                                      } else if (statName === 'attack' || statName === 'defense') {
+                                        if (effectiveStat >= 90) return '#00C853';       // Green for very high Atk/Def
+                                        if (effectiveStat >= 75) return '#64DD17';       // Light green for high Atk/Def
+                                        if (effectiveStat >= 60) return '#FFD600';       // Yellow for good Atk/Def
+                                        if (effectiveStat >= 45) return '#FFA000';       // Orange for average Atk/Def
+                                        if (effectiveStat >= 30) return '#FF6D00';       // Dark orange for below average Atk/Def
+                                        return '#F44336';                                // Red for low Atk/Def
+                                      } else if (statName === 'special-attack' || statName === 'special-defense') {
+                                        if (effectiveStat >= 90) return '#00C853';       // Green for very high SpA/SpD
+                                        if (effectiveStat >= 75) return '#64DD17';       // Light green for high SpA/SpD
+                                        if (effectiveStat >= 60) return '#FFD600';       // Yellow for good SpA/SpD
+                                        if (effectiveStat >= 45) return '#FFA000';       // Orange for average SpA/SpD
+                                        if (effectiveStat >= 30) return '#FF6D00';       // Dark orange for below average SpA/SpD
+                                        return '#F44336';                                // Red for low SpA/SpD
+                                      } else if (statName === 'speed') {
+                                        if (effectiveStat >= 85) return '#00C853';       // Green for very high Speed
+                                        if (effectiveStat >= 70) return '#64DD17';       // Light green for high Speed
+                                        if (effectiveStat >= 55) return '#FFD600';       // Yellow for good Speed
+                                        if (effectiveStat >= 40) return '#FFA000';       // Orange for average Speed
+                                        if (effectiveStat >= 25) return '#FF6D00';       // Dark orange for below average Speed
+                                        return '#F44336';                                // Red for low Speed
+                                      }
+                                      return '#F44336';                                  // Default to red for unknown stats
+                                    })()
+                                  }
+                                }}
+                              />
                 </Box>
-              ) : (
-                <Box sx={{ display: 'flex', gap: 2, color: 'text.secondary' }}>
-                  <CommentIcon sx={{ mt: 0.5 }} />
-                  <Typography>No comments added.</Typography>
-                </Box>
-              )}
+                            {ev > 0 && (
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  minWidth: 45,
+                                  textAlign: 'right',
+                                  fontFamily: showdownTheme.fontFamily,
+                                  fontSize: '0.8rem',
+                                  color: showdownTheme.secondaryText
+                                }}
+                              >
+                                {ev} EV
+                  </Typography>
+                            )}
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                width: 40,
+                                textAlign: 'right',
+                                fontFamily: showdownTheme.fontFamily,
+                                fontSize: '0.8rem',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              {total}
+                            </Typography>
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                width: 40,
+                                textAlign: 'right',
+                                fontFamily: showdownTheme.fontFamily,
+                                fontSize: '0.8rem',
+                                color: iv < 31 ? '#F44336' : showdownTheme.secondaryText
+                              }}
+                            >
+                              {iv}
+                            </Typography>
             </Box>
-          </Paper>
         </Grid>
+                      );
+                    })}
+                    <Grid item xs={12}>
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: showdownTheme.secondaryText,
+                            fontFamily: showdownTheme.fontFamily,
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          {pokemon.nature} Nature
+                        </Typography>
+            </Box>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
 
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 0, mb: 3, borderRadius: 2, overflow: 'hidden', boxShadow: 2 }}>
-            <Box sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', py: 1.5, px: 2 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>Base Stats</Typography>
-            </Box>
-            <Box sx={{ p: 2 }}>
-              {pokemon.stats.map((stat) => (
-                <StatBar
-                  key={stat.stat.name}
-                  statName={stat.stat.name}
-                  value={stat.base_stat}
-                />
-              ))}
-            </Box>
-          </Paper>
-
-          <Paper sx={{ p: 0, mb: 3, borderRadius: 2, overflow: 'hidden', boxShadow: 2 }}>
-            <Box sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', py: 1.5, px: 2 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>IVs</Typography>
-            </Box>
-            <List sx={{ py: 0 }}>
-              {Object.entries(pokemon.ivs).map(([stat, value]: [string, number], index: number) => (
-                <ListItem 
-                  key={`${pokemon.collectionId}-iv-${stat}-${index}`} 
-                  divider={index < Object.keys(pokemon.ivs).length - 1}
-                >
-                  <ListItemText 
-                    primary={capitalizeFirstLetter(stat)} 
-                    primaryTypographyProps={{ color: 'text.secondary' }}
-                  />
-                  <Typography variant="body1" fontWeight={600} color="primary">
-                    {value}
-                  </Typography>
-                </ListItem>
-              ))}
-            </List>
-          </Paper>
-
-          <Paper sx={{ p: 0, mb: 3, borderRadius: 2, overflow: 'hidden', boxShadow: 2 }}>
-            <Box sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', py: 1.5, px: 2 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>EVs</Typography>
-            </Box>
-            <List sx={{ py: 0 }}>
-              {Object.entries(pokemon.evs).map(([stat, value]: [string, number], index: number) => (
-                <ListItem 
-                  key={`${pokemon.collectionId}-ev-${stat}-${index}`} 
-                  divider={index < Object.keys(pokemon.evs).length - 1}
-                >
-                  <ListItemText 
-                    primary={capitalizeFirstLetter(stat)} 
-                    primaryTypographyProps={{ color: 'text.secondary' }}
-                  />
-                  <Typography variant="body1" fontWeight={600} color="primary">
-                    {value.toString()}
-                  </Typography>
-                </ListItem>
-              ))}
-            </List>
-          </Paper>
-
-          <Paper sx={{ p: 0, borderRadius: 2, overflow: 'hidden', boxShadow: 2 }}>
-            <Box sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', py: 1.5, px: 2 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>Moves</Typography>
-            </Box>
-            {pokemon.moves.length > 0 ? (
-              <List sx={{ py: 0 }}>
-                {pokemon.moves.map((move: string, index: number) => (
-                  <ListItem 
-                    key={`${pokemon.collectionId}-move-${index}`}
-                    divider={index < pokemon.moves.length - 1}
+            {/* Additional Details Card */}
+            <Grid item xs={12} sm={6}>
+              <Card sx={{ 
+                bgcolor: showdownTheme.cardBackground,
+                border: `1px solid ${showdownTheme.border}`,
+                boxShadow: 'none',
+                height: '100%' // Make the card take full height
+              }}>
+                <CardContent sx={{ p: 1.5 }}>
+                  <Typography 
+                    variant="h6" 
+                    sx={{ 
+                      color: showdownTheme.header,
+                      fontFamily: showdownTheme.fontFamily,
+                      fontSize: '1rem',
+                      fontWeight: 'bold',
+                      mb: 1
+                    }}
                   >
-                    <ListItemIcon>
-                      <FlashOnIcon color="primary" />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary={capitalizeFirstLetter(move)}
-                      primaryTypographyProps={{ fontWeight: 500 }}
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            ) : (
-              <Box sx={{ p: 2, display: 'flex', gap: 2, color: 'text.secondary' }}>
-                <FlashOnIcon sx={{ mt: 0.5 }} />
-                <Typography>No moves specified.</Typography>
+                    Additional Details
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <LocationOnIcon sx={{ color: showdownTheme.secondaryText, fontSize: '1rem' }} />
+                        <Typography 
+                          variant="body2"
+                          sx={{ 
+                            fontFamily: showdownTheme.fontFamily,
+                            fontSize: '0.8rem',
+                            color: showdownTheme.text
+                          }}
+                        >
+                          {pokemon.location || 'Unknown Location'}
+                        </Typography>
+            </Box>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <VideogameAssetIcon sx={{ color: showdownTheme.secondaryText, fontSize: '1rem' }} />
+                        <Typography 
+                          variant="body2"
+                          sx={{ 
+                            fontFamily: showdownTheme.fontFamily,
+                            fontSize: '0.8rem',
+                            color: showdownTheme.text
+                          }}
+                        >
+                          {pokemon.caughtFrom || 'Main Series'}
+                  </Typography>
+            </Box>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CalendarMonthIcon sx={{ color: showdownTheme.secondaryText, fontSize: '1rem' }} />
+                        <Typography 
+                          variant="body2"
+                          sx={{ 
+                            fontFamily: showdownTheme.fontFamily,
+                            fontSize: '0.8rem',
+                            color: showdownTheme.text
+                          }}
+                        >
+                          {formattedCaughtDate}
+                  </Typography>
+            </Box>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <EmojiEventsIcon sx={{ color: showdownTheme.secondaryText, fontSize: '1rem' }} />
+                        <Typography 
+                          variant="body2"
+                          sx={{ 
+                            fontFamily: showdownTheme.fontFamily,
+                            fontSize: '0.8rem',
+                            color: showdownTheme.text
+                          }}
+                        >
+                          {pokemon.project || 'Other'}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    {pokemon.comments && (
+                      <Grid item xs={12}>
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                          <CommentIcon sx={{ color: showdownTheme.secondaryText, fontSize: '1rem', mt: 0.5 }} />
+                          <Typography 
+                            variant="body2"
+                            sx={{ 
+                              fontFamily: showdownTheme.fontFamily,
+                              fontSize: '0.8rem',
+                              color: showdownTheme.text
+                            }}
+                          >
+                            {pokemon.comments}
+                          </Typography>
               </Box>
-            )}
-          </Paper>
+                      </Grid>
+                    )}
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
         </Grid>
       </Grid>
 
       {/* Edit Dialog */}
-<Dialog open={isEditDialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog 
+        open={isEditDialogOpen} 
+        onClose={handleCloseDialog} 
+        maxWidth="md" 
+        fullWidth
+      >
   <DialogTitle>Edit {pokemon.name}</DialogTitle>
   <DialogContent dividers>
     {editedPokemon && (
@@ -846,17 +1198,32 @@ const generateShowdownImport = (pokemon: MyPokemon): string => {
           </Grid>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth margin="normal">
-              <InputLabel>Gender</InputLabel>
-              <Select
-                name="gender"
+                    <Typography variant="subtitle2" gutterBottom>Gender</Typography>
+                    <RadioGroup
+                      row
                 value={editedPokemon.gender || 'N/A'}
-                onChange={handleSelectChange}
-                label="Gender"
-              >
-                <MenuItem value="Male">Male</MenuItem>
-                <MenuItem value="Female">Female</MenuItem>
-                <MenuItem value="N/A">N/A</MenuItem>
-              </Select>
+                      onChange={(e) => {
+                        setEditedPokemon((prev: MyPokemon | null) => 
+                          prev ? { ...prev, gender: e.target.value } : prev
+                        );
+                      }}
+                    >
+                      <FormControlLabel 
+                        value="male" 
+                        control={<Radio />} 
+                        label={<MaleIcon sx={{ color: '#3273DC' }} />} 
+                      />
+                      <FormControlLabel 
+                        value="female" 
+                        control={<Radio />} 
+                        label={<FemaleIcon sx={{ color: '#FF6B6B' }} />} 
+                      />
+                      <FormControlLabel 
+                        value="N/A" 
+                        control={<Radio />} 
+                        label="N/A" 
+                      />
+                    </RadioGroup>
             </FormControl>
           </Grid>
           <Grid item xs={12} sm={6}>
@@ -977,10 +1344,27 @@ const generateShowdownImport = (pokemon: MyPokemon): string => {
 
         <Typography variant="h6" gutterBottom sx={{ mt: 4, mb: 2 }}>EVs</Typography>
         <EVDistributor
-  evs={editedPokemon.evs as any}
+                evs={{
+                  hp: editedPokemon.evs.hp || 0,
+                  attack: editedPokemon.evs.attack || 0,
+                  defense: editedPokemon.evs.defense || 0,
+                  specialAttack: editedPokemon.evs.specialAttack || 0,
+                  specialDefense: editedPokemon.evs.specialDefense || 0,
+                  speed: editedPokemon.evs.speed || 0
+                }}
   onChange={(newEVs) => {
     setEditedPokemon((prev: MyPokemon | null) => 
-      prev ? { ...prev, evs: newEVs } : prev
+                    prev ? { 
+                      ...prev, 
+                      evs: {
+                        hp: newEVs.hp,
+                        attack: newEVs.attack,
+                        defense: newEVs.defense,
+                        specialAttack: newEVs.specialAttack,
+                        specialDefense: newEVs.specialDefense,
+                        speed: newEVs.speed
+                      }
+                    } : prev
     );
   }}
 />
@@ -989,18 +1373,24 @@ const generateShowdownImport = (pokemon: MyPokemon): string => {
         <Grid container spacing={2}>
           {[0, 1, 2, 3].map((index) => (
             <Grid item xs={12} sm={6} key={`move-${index}`}>
-              <TextField
-                fullWidth
-                label={`Move ${index + 1}`}
-                value={editedPokemon.moves[index] || ''}
-                onChange={(e) => {
+              <MoveSelector
+                value={editedPokemon.moves[index] ? {
+                  name: editedPokemon.moves[index],
+                  type: 'Normal', // This will be updated when a move is selected
+                  category: 'Physical',
+                  power: 40,
+                  accuracy: 100,
+                  pp: 35,
+                  description: 'A physical attack.',
+                } : null}
+                onChange={(move) => {
                   const newMoves = [...editedPokemon.moves];
-                  newMoves[index] = e.target.value;
+                  newMoves[index] = move?.name || '';
                   setEditedPokemon((prev: MyPokemon | null) => 
                     prev ? { ...prev, moves: newMoves } : prev
                   );
                 }}
-                margin="normal"
+                label={`Move ${index + 1}`}
               />
             </Grid>
           ))}
@@ -1021,6 +1411,27 @@ const generateShowdownImport = (pokemon: MyPokemon): string => {
             />
           </Grid>
         </Grid>
+
+        <Typography variant="h6" gutterBottom sx={{ mt: 4, mb: 2 }}>Project</Typography>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>Project</InputLabel>
+              <Select
+                name="project"
+                value={editedPokemon.project || 'Other'}
+                onChange={handleSelectChange}
+                label="Project"
+              >
+                <MenuItem value="Competitive">Competitive</MenuItem>
+                <MenuItem value="Shiny Living Dex">Shiny Living Dex</MenuItem>
+                <MenuItem value="Living Dex">Living Dex</MenuItem>
+                <MenuItem value="Trophy">Trophy</MenuItem>
+                <MenuItem value="Other">Other</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
       </Box>
     )}
   </DialogContent>
@@ -1031,8 +1442,56 @@ const generateShowdownImport = (pokemon: MyPokemon): string => {
     </Button>
   </DialogActions>
 </Dialog>
-                     </Box>
-                   );
-                 };
-                 
-                 export default PokemonDetails;
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            bgcolor: showdownTheme.cardBackground,
+            border: `1px solid ${showdownTheme.border}`,
+            color: showdownTheme.text
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          fontFamily: showdownTheme.fontFamily,
+          color: showdownTheme.header
+        }}>
+          Remove Pokémon
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ 
+            fontFamily: showdownTheme.fontFamily,
+            color: showdownTheme.text
+          }}>
+            Are you sure you want to remove {pokemon?.nickname || capitalizeFirstLetter(pokemon?.name || '')} from your collection?
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setIsDeleteDialogOpen(false)}
+            sx={{ fontFamily: showdownTheme.fontFamily }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={() => {
+              setIsDeleteDialogOpen(false);
+              handleRemove();
+            }}
+            color="error"
+            variant="contained"
+            sx={{ fontFamily: showdownTheme.fontFamily }}
+          >
+            Remove
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default PokemonDetails;
