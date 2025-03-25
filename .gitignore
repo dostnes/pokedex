@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Collection data
+collection-data/*
+!collection-data/*.json

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import {
   Box,
@@ -16,13 +16,20 @@ import {
   useTheme,
   alpha,
   CircularProgress,
+  IconButton,
+  Menu,
+  MenuItem,
+  useMediaQuery,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import { RootState } from '../store/store';
 import { MyPokemon } from '../types/pokemon';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { normalizePokedexNumber } from '../utils/pokemonUtils';
+import { format, subMonths, eachMonthOfInterval, isWithinInterval } from 'date-fns';
+import CatchingPokemonIcon from '@mui/icons-material/CatchingPokemon';
 
 // Define generation ranges
 const generations = [
@@ -59,6 +66,82 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
+const NextMilestones = ({ stats }: { stats: {
+  uniqueSpeciesCount: number;
+  uniqueShinyCount: number;
+  totalPokemon: number;
+  generationStats: Array<{
+    name: string;
+    caught: number;
+    shiny: number;
+    total: number;
+    caughtPercentage: number;
+    shinyPercentage: number;
+  }>;
+} }) => {
+  const theme = useTheme();
+  
+  // Calculate next overall completion milestone
+  const nextOverallMilestone = Math.ceil(stats.uniqueSpeciesCount / 10) * 10;
+  const remainingForOverall = nextOverallMilestone - stats.uniqueSpeciesCount;
+  
+  // Calculate next shiny completion milestone
+  const nextShinyMilestone = Math.ceil(stats.uniqueShinyCount / 10) * 10;
+  const remainingForShiny = nextShinyMilestone - stats.uniqueShinyCount;
+  
+  // Find next generation completion
+  const nextGenCompletion = stats.generationStats
+    .filter((gen) => gen.caughtPercentage < 100)
+    .sort((a, b) => a.caughtPercentage - b.caughtPercentage)[0];
+  
+  // Find next generation shiny completion
+  const nextGenShinyCompletion = stats.generationStats
+    .filter((gen) => gen.shinyPercentage < 100)
+    .sort((a, b) => a.shinyPercentage - b.shinyPercentage)[0];
+
+  return (
+    <Card sx={{ p: 2, mb: 2 }}>
+      <Typography variant="h6" gutterBottom>
+        Next Milestones
+      </Typography>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        {remainingForOverall > 0 && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <CatchingPokemonIcon color="primary" />
+            <Typography>
+              {remainingForOverall} more unique Pokémon for {nextOverallMilestone}% completion
+            </Typography>
+          </Box>
+        )}
+        {remainingForShiny > 0 && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <AutoAwesomeIcon color="warning" />
+            <Typography>
+              {remainingForShiny} more unique shiny Pokémon for {nextShinyMilestone}% completion
+            </Typography>
+          </Box>
+        )}
+        {nextGenCompletion && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <CatchingPokemonIcon color="primary" />
+            <Typography>
+              {Math.ceil(nextGenCompletion.total - nextGenCompletion.caught)} more Pokémon to complete {nextGenCompletion.name} Pokédex
+            </Typography>
+          </Box>
+        )}
+        {nextGenShinyCompletion && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <AutoAwesomeIcon color="warning" />
+            <Typography>
+              {Math.ceil(nextGenCompletion.total - nextGenShinyCompletion.shiny)} more unique shiny Pokémon to complete {nextGenShinyCompletion.name} Shiny Pokédex
+            </Typography>
+          </Box>
+        )}
+      </Box>
+    </Card>
+  );
+};
+
 const PokedexTracker = () => {
   const theme = useTheme();
   const myCollection = useSelector((state: RootState) => state.pokemon.myCollection);
@@ -68,6 +151,8 @@ const PokedexTracker = () => {
     totalPokemon: number;
     totalCaught: number;
     totalShiny: number;
+    uniqueSpeciesCount: number;
+    uniqueShinyCount: number;
     generationStats: {
       id: number;
       name: string;
@@ -78,11 +163,26 @@ const PokedexTracker = () => {
       caughtPercentage: number;
       shinyPercentage: number;
     }[];
+    growthStats: {
+      monthlyData: {
+        date: string;
+        total: number;
+        new: number;
+        shiny: number;
+      }[];
+      earliestDate: Date | null;
+    };
   }>({
     totalPokemon: 0,
     totalCaught: 0,
     totalShiny: 0,
+    uniqueSpeciesCount: 0,
+    uniqueShinyCount: 0,
     generationStats: [],
+    growthStats: {
+      monthlyData: [],
+      earliestDate: null,
+    },
   });
 
   // Calculate stats when collection changes
@@ -95,30 +195,47 @@ const PokedexTracker = () => {
     const lastGen = generations[generations.length - 1];
     const totalPokemon = lastGen.range[1];
     
-    // Get unique Pokémon IDs in collection (accounting for multiple of same species)
-    // Normalize IDs to handle variant forms
-    const normalizedIds = myCollection.map((p: MyPokemon) => normalizePokedexNumber(p.id || 0));
-    const uniquePokemonIds = new Set(normalizedIds);
-    const totalCaught = uniquePokemonIds.size;
+    // Count all Pokémon entries (including duplicates)
+    const totalCaught = myCollection.length;
     
-    // Count unique shiny Pokémon (also normalizing IDs)
-    const shinyPokemon = myCollection.filter((p: MyPokemon) => p.shiny);
-    const normalizedShinyIds = shinyPokemon.map((p: MyPokemon) => normalizePokedexNumber(p.id || 0));
-    const uniqueShinyIds = new Set(normalizedShinyIds);
-    const totalShiny = uniqueShinyIds.size;
+    // Count all shiny Pokémon entries
+    const totalShiny = myCollection.filter((p: MyPokemon) => p.shiny).length;
+
+    // Count unique species for Pokédex completion
+    const uniqueSpecies = new Set(myCollection.map(p => normalizePokedexNumber(p.id || 0)));
+    const uniqueSpeciesCount = uniqueSpecies.size;
+
+    // Count unique shiny species
+    const uniqueShinySpecies = new Set(
+      myCollection
+        .filter(p => p.shiny)
+        .map(p => normalizePokedexNumber(p.id || 0))
+    );
+    const uniqueShinyCount = uniqueShinySpecies.size;
     
-    // Calculate stats for each generation
+    // Calculate generation stats
     const generationStats = generations.map(gen => {
       const [min, max] = gen.range;
       const total = max - min + 1;
       
-      // Count caught Pokémon in this generation
-      const caughtInGen = Array.from(uniquePokemonIds).filter(id => id >= min && id <= max);
-      const caught = caughtInGen.length;
+      // Get all Pokémon in this generation
+      const pokemonInGen = myCollection.filter(p => {
+        const normalizedId = normalizePokedexNumber(p.id || 0);
+        return normalizedId >= min && normalizedId <= max;
+      });
+
+      // Count unique species in this generation
+      const uniqueSpeciesInGen = new Set(
+        pokemonInGen.map(p => normalizePokedexNumber(p.id || 0))
+      );
+      const caught = uniqueSpeciesInGen.size;
       
-      // Count shiny Pokémon in this generation
-      const shinyInGen = Array.from(uniqueShinyIds).filter(id => id >= min && id <= max);
-      const shiny = shinyInGen.length;
+      // Count unique shiny species in this generation
+      const shinyInGen = pokemonInGen.filter(p => p.shiny);
+      const uniqueShinyInGen = new Set(
+        shinyInGen.map(p => normalizePokedexNumber(p.id || 0))
+      );
+      const shiny = uniqueShinyInGen.size;
       
       return {
         id: gen.id,
@@ -131,12 +248,59 @@ const PokedexTracker = () => {
         shinyPercentage: (shiny / total) * 100,
       };
     });
+
+    // Calculate growth stats
+    const now = new Date();
+    
+    // Find the earliest caughtDate in the collection
+    const earliestDate = myCollection.reduce((earliest, pokemon) => {
+      if (!pokemon.caughtDate) return earliest;
+      const caughtDate = new Date(pokemon.caughtDate);
+      return earliest && caughtDate > earliest ? earliest : caughtDate;
+    }, null as Date | null);
+
+    // If no caughtDate found, default to 10 years ago
+    const startDate = earliestDate || subMonths(now, 120);
+    const monthlyDates = eachMonthOfInterval({ start: startDate, end: now });
+    
+    const monthlyData = monthlyDates.map(date => {
+      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      
+      // Get all Pokémon caught in this month
+      const pokemonInMonth = myCollection.filter(p => {
+        const caughtDate = p.caughtDate ? new Date(p.caughtDate) : null;
+        return caughtDate && isWithinInterval(caughtDate, { start: monthStart, end: monthEnd });
+      });
+      
+      const newPokemon = pokemonInMonth.length;
+      const newShiny = pokemonInMonth.filter(p => p.shiny).length;
+      
+      // Calculate total up to this month
+      const totalUpToMonth = myCollection.filter(p => {
+        const caughtDate = p.caughtDate ? new Date(p.caughtDate) : null;
+        return caughtDate && caughtDate <= monthEnd;
+      }).length;
+
+      return {
+        date: format(date, 'MMM yyyy'),
+        total: totalUpToMonth,
+        new: newPokemon,
+        shiny: newShiny,
+      };
+    });
     
     setStats({
       totalPokemon,
       totalCaught,
       totalShiny,
+      uniqueSpeciesCount,
+      uniqueShinyCount,
       generationStats,
+      growthStats: {
+        monthlyData,
+        earliestDate,
+      },
     });
     
     setIsLoading(false);
@@ -178,6 +342,7 @@ const PokedexTracker = () => {
         <Tab label="Overall Progress" />
         <Tab label="Shiny Collection" />
         <Tab label="Regional Pokédex" />
+        <Tab label="Growth Analysis" />
       </Tabs>
       
       {/* Overall Progress Tab */}
@@ -200,8 +365,9 @@ const PokedexTracker = () => {
                   </Box>
                   <Divider orientation="vertical" flexItem />
                   <Box sx={{ textAlign: 'center', flex: 1 }}>
-                    <Typography variant="h3" color="warning.main" sx={{ fontWeight: 'bold' }}>
+                    <Typography variant="h3" color="warning.main" sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
                       {stats.totalShiny}
+                      <AutoAwesomeIcon sx={{ fontSize: '1.2em' }} />
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Shiny Pokémon
@@ -210,7 +376,7 @@ const PokedexTracker = () => {
                   <Divider orientation="vertical" flexItem />
                   <Box sx={{ textAlign: 'center', flex: 1 }}>
                     <Typography variant="h3" sx={{ fontWeight: 'bold' }}>
-                      {((stats.totalCaught / stats.totalPokemon) * 100).toFixed(1)}%
+                      {((stats.uniqueSpeciesCount / stats.totalPokemon) * 100).toFixed(1)}%
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Pokédex Completion
@@ -225,12 +391,12 @@ const PokedexTracker = () => {
                   <Box sx={{ flex: 1, mr: 1 }}>
                     <LinearProgress 
                       variant="determinate" 
-                      value={(stats.totalCaught / stats.totalPokemon) * 100} 
+                      value={(stats.uniqueSpeciesCount / stats.totalPokemon) * 100} 
                       sx={{ height: 10, borderRadius: 5 }}
                     />
                   </Box>
                   <Typography variant="body2" color="text.secondary">
-                    {stats.totalCaught} / {stats.totalPokemon}
+                    {stats.uniqueSpeciesCount} / {stats.totalPokemon}
                   </Typography>
                 </Box>
                 
@@ -241,7 +407,7 @@ const PokedexTracker = () => {
                   <Box sx={{ flex: 1, mr: 1 }}>
                     <LinearProgress 
                       variant="determinate" 
-                      value={(stats.totalShiny / stats.totalPokemon) * 100} 
+                      value={(stats.uniqueShinyCount / stats.totalPokemon) * 100} 
                       sx={{ 
                         height: 10, 
                         borderRadius: 5,
@@ -252,7 +418,7 @@ const PokedexTracker = () => {
                     />
                   </Box>
                   <Typography variant="body2" color="text.secondary">
-                    {stats.totalShiny} / {stats.totalPokemon}
+                    {stats.uniqueShinyCount} / {stats.totalPokemon}
                   </Typography>
                 </Box>
               </Paper>
@@ -267,7 +433,11 @@ const PokedexTracker = () => {
                   <ResponsiveContainer width="100%" height={250}>
                     <PieChart>
                       <Pie
-                        data={overallPieData}
+                        data={[
+                          { name: 'Caught (Non-Shiny)', value: stats.totalCaught - stats.totalShiny, color: theme.palette.primary.main },
+                          { name: 'Shiny Species', value: stats.uniqueShinyCount, color: theme.palette.warning.main },
+                          { name: 'Not Caught', value: stats.totalPokemon - stats.uniqueSpeciesCount, color: theme.palette.grey[300] },
+                        ]}
                         cx="50%"
                         cy="50%"
                         innerRadius={60}
@@ -276,7 +446,11 @@ const PokedexTracker = () => {
                         dataKey="value"
                         nameKey="name"
                       >
-                        {overallPieData.map((entry, index) => (
+                        {[
+                          { name: 'Caught (Non-Shiny)', value: stats.totalCaught - stats.totalShiny, color: theme.palette.primary.main },
+                          { name: 'Shiny Species', value: stats.uniqueShinyCount, color: theme.palette.warning.main },
+                          { name: 'Not Caught', value: stats.totalPokemon - stats.uniqueSpeciesCount, color: theme.palette.grey[300] },
+                        ].map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
@@ -285,7 +459,11 @@ const PokedexTracker = () => {
                   </ResponsiveContainer>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap', mt: 2 }}>
-                  {overallPieData.map((entry, index) => (
+                  {[
+                    { name: 'Caught (Non-Shiny)', value: stats.totalCaught - stats.totalShiny, color: theme.palette.primary.main },
+                    { name: 'Shiny Species', value: stats.uniqueShinyCount, color: theme.palette.warning.main },
+                    { name: 'Not Caught', value: stats.totalPokemon - stats.uniqueSpeciesCount, color: theme.palette.grey[300] },
+                  ].map((entry, index) => (
                     <Chip
                       key={`legend-${index}`}
                       label={`${entry.name}: ${entry.value}`}
@@ -298,6 +476,13 @@ const PokedexTracker = () => {
                   ))}
                 </Box>
               </Paper>
+            </Grid>
+          </Grid>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <Box sx={{ mt: 4 }}>
+                <NextMilestones stats={stats} />
+              </Box>
             </Grid>
           </Grid>
         </Box>
@@ -449,6 +634,86 @@ const PokedexTracker = () => {
                 </Paper>
               </Grid>
             ))}
+          </Grid>
+        </Box>
+      )}
+
+      {/* Growth Analysis Tab */}
+      {tabValue === 3 && (
+        <Box>
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={8}>
+              <Paper elevation={2} sx={{ p: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Collection Growth Over Time
+                  {stats.growthStats.earliestDate && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      From {format(stats.growthStats.earliestDate, 'MMMM yyyy')} to Present
+                    </Typography>
+                  )}
+                </Typography>
+                <Box sx={{ height: 400, mt: 2 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={stats.growthStats.monthlyData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="date" 
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                        interval="preserveStartEnd"
+                      />
+                      <YAxis />
+                      <RechartsTooltip />
+                      <Line
+                        type="monotone"
+                        dataKey="total"
+                        stroke={theme.palette.primary.main}
+                        name="Total Collection"
+                        dot={false}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="new"
+                        stroke={theme.palette.secondary.main}
+                        name="New Pokémon"
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </Box>
+              </Paper>
+            </Grid>
+            
+            <Grid item xs={12} md={4}>
+              <Paper elevation={2} sx={{ p: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Collection Statistics
+                </Typography>
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle1" gutterBottom>
+                    Total Pokémon
+                  </Typography>
+                  <Typography variant="h4" color="primary" sx={{ mb: 3 }}>
+                    {stats.totalCaught}
+                  </Typography>
+
+                  <Typography variant="subtitle1" gutterBottom>
+                    Shiny Pokémon
+                  </Typography>
+                  <Typography variant="h4" color="warning.main" sx={{ mb: 3 }}>
+                    {stats.totalShiny}
+                  </Typography>
+
+                  <Typography variant="subtitle1" gutterBottom>
+                    Pokédex Completion
+                  </Typography>
+                  <Typography variant="h4" sx={{ mb: 3 }}>
+                    {((stats.totalCaught / stats.totalPokemon) * 100).toFixed(1)}%
+                  </Typography>
+                </Box>
+              </Paper>
+            </Grid>
           </Grid>
         </Box>
       )}

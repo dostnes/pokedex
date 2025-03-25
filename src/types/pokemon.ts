@@ -156,6 +156,7 @@ export interface MyPokemon extends Omit<Pokemon, 'moves'> {
   moves: string[];
   project?: 'Competitive' | 'Shiny Living Dex' | 'Living Dex' | 'Trophy' | 'Other';
   timestamp: number;
+  favorite?: boolean;
 }
 
 // For the form when adding a new Pokemon

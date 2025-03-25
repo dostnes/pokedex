@@ -127,6 +127,7 @@ export const searchPokemon = createAsyncThunk(
 );
 
 export const removeFromCollection = createAction<string>('pokemon/removeFromCollection');
+export const toggleFavoriteAction = createAction<string>('pokemon/toggleFavorite');
 
 const pokemonSlice = createSlice({
   name: 'pokemon',
@@ -225,6 +226,15 @@ const pokemonSlice = createSlice({
     // Add a setCollection action for direct state updates
     setCollection: (state, action: PayloadAction<MyPokemon[]>) => {
       state.myCollection = action.payload;
+    },
+    toggleFavorite: (state, action: PayloadAction<string>) => {
+      const pokemon = state.myCollection.find(p => p.collectionId === action.payload);
+      if (pokemon) {
+        pokemon.favorite = !pokemon.favorite;
+        // Create a plain object copy before updating the database
+        const pokemonCopy = JSON.parse(JSON.stringify(pokemon));
+        collectionDb.update(pokemonCopy);
+      }
     }
   },
   extraReducers: (builder) => {
@@ -338,7 +348,8 @@ export const {
   updatePokemon, 
   clearCollection, 
   importCollection,
-  setCollection 
+  setCollection,
+  toggleFavorite 
 } = pokemonSlice.actions;
 
 export default pokemonSlice.reducer;

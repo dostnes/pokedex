@@ -1,9 +1,18 @@
 import { openDB } from 'idb';
 import type { MyPokemon } from '../types/pokemon';
 
-const dbPromise = openDB('pokemon-collection-db', 1, {
-  upgrade(db) {
-    db.createObjectStore('collection', { keyPath: 'collectionId' });
+const dbPromise = openDB('pokemon-collection-db', 2, {
+  upgrade(db, oldVersion, newVersion) {
+    // Create the object store if it doesn't exist
+    if (!db.objectStoreNames.contains('collection')) {
+      db.createObjectStore('collection', { keyPath: 'collectionId' });
+    }
+    
+    // Handle migration from version 1 to 2
+    if (oldVersion < 2) {
+      // No specific migrations needed for version 2
+      // The store structure remains the same
+    }
   },
 });
 

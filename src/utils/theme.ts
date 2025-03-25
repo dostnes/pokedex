@@ -28,20 +28,34 @@ export const getTheme = (mode: PaletteMode) => {
         default: mode === 'light' ? '#F5F5F5' : '#121212',
         paper: mode === 'light' ? '#FFFFFF' : '#1E1E1E',
       },
+      text: {
+        primary: mode === 'light' ? '#000000' : '#FFFFFF',
+        secondary: mode === 'light' ? '#666666' : '#B0B0B0',
+      },
+      action: {
+        active: mode === 'light' ? '#000000' : '#FFFFFF',
+        hover: mode === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.08)',
+        selected: mode === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.12)',
+        disabled: mode === 'light' ? 'rgba(0, 0, 0, 0.26)' : 'rgba(255, 255, 255, 0.3)',
+        disabledBackground: mode === 'light' ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.12)',
+      },
+      divider: mode === 'light' ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.12)',
     },
     components: {
       MuiCard: {
         styleOverrides: {
           root: {
             backgroundColor: mode === 'light' ? '#FFFFFF' : '#1E1E1E',
+            color: mode === 'light' ? '#000000' : '#FFFFFF',
           },
         },
       },
       MuiAppBar: {
         styleOverrides: {
           root: {
-            background: 'linear-gradient(45deg, #DC0A2D 30%, #FF4D4D 90%)',
-            boxShadow: '0 3px 5px 2px rgba(220, 10, 45, .3)',
+            background: 'linear-gradient(135deg, #DC0A2D 0%, #FF4D4D 100%)',
+            boxShadow: '0 2px 8px rgba(220, 10, 45, 0.3)',
+            backdropFilter: 'blur(8px)',
           },
         },
       },
@@ -49,6 +63,7 @@ export const getTheme = (mode: PaletteMode) => {
         styleOverrides: {
           root: {
             textTransform: 'none',
+            color: mode === 'light' ? '#000000' : '#FFFFFF',
           },
         },
       },
@@ -56,6 +71,76 @@ export const getTheme = (mode: PaletteMode) => {
         styleOverrides: {
           paper: {
             backgroundColor: mode === 'light' ? '#FFFFFF' : '#1E1E1E',
+            color: mode === 'light' ? '#000000' : '#FFFFFF',
+          },
+        },
+      },
+      MuiTextField: {
+        styleOverrides: {
+          root: {
+            '& .MuiOutlinedInput-root': {
+              color: mode === 'light' ? '#000000' : '#FFFFFF',
+              '& fieldset': {
+                borderColor: mode === 'light' ? 'rgba(0, 0, 0, 0.23)' : 'rgba(255, 255, 255, 0.23)',
+              },
+              '&:hover fieldset': {
+                borderColor: mode === 'light' ? 'rgba(0, 0, 0, 0.87)' : 'rgba(255, 255, 255, 0.87)',
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#DC0A2D',
+              },
+            },
+            '& .MuiInputLabel-root': {
+              color: mode === 'light' ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.6)',
+            },
+          },
+        },
+      },
+      MuiSelect: {
+        styleOverrides: {
+          root: {
+            color: mode === 'light' ? '#000000' : '#FFFFFF',
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: mode === 'light' ? 'rgba(0, 0, 0, 0.23)' : 'rgba(255, 255, 255, 0.23)',
+            },
+            '&:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: mode === 'light' ? 'rgba(0, 0, 0, 0.87)' : 'rgba(255, 255, 255, 0.87)',
+            },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#DC0A2D',
+            },
+          },
+        },
+      },
+      MuiMenuItem: {
+        styleOverrides: {
+          root: {
+            color: mode === 'light' ? '#000000' : '#FFFFFF',
+            '&:hover': {
+              backgroundColor: mode === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.08)',
+            },
+          },
+        },
+      },
+      MuiChip: {
+        styleOverrides: {
+          root: {
+            backgroundColor: mode === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)',
+            color: mode === 'light' ? '#000000' : '#FFFFFF',
+          },
+        },
+      },
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            color: mode === 'light' ? '#000000' : '#FFFFFF',
+          },
+        },
+      },
+      MuiTypography: {
+        styleOverrides: {
+          root: {
+            color: mode === 'light' ? '#000000' : '#FFFFFF',
           },
         },
       },

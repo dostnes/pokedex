@@ -1,0 +1,19 @@
+[Unit]
+Description=Pokedex Backend Server
+After=network.target
+
+[Service]
+Type=simple
+# Use %i to allow systemd to substitute the actual username
+User=%i
+WorkingDirectory=/home/%i/pokedex
+ExecStart=/usr/bin/npm run pokeserver
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=production
+Environment=PORT=3001
+# Add display for potential GUI notifications
+Environment=DISPLAY=:0
+
+[Install]
+WantedBy=multi-user.target 

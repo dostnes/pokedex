@@ -8,10 +8,11 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        // Ignore these paths in the state
-        ignoredPaths: ['pokemon.allPokemon'],
-        // Or completely disable in development
-        // serializableCheck: false,
+        ignoredPaths: [
+          'pokemon.allPokemon.results',
+          'pokemon.allPokemon.results.*.sprites',
+          'pokemon.allPokemon.results.*.moves'
+        ],
       },
     }),
 });

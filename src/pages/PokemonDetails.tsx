@@ -54,11 +54,12 @@ import FemaleIcon from '@mui/icons-material/Female';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import StarIcon from '@mui/icons-material/Star';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import SpeedIcon from '@mui/icons-material/Speed';
 import SchoolIcon from '@mui/icons-material/School';
 import { RootState, AppDispatch } from '../store/store';
-import { removeFromCollection, updatePokemon } from '../store/pokemonSlice';
+import { removeFromCollection, updatePokemon, toggleFavorite } from '../store/pokemonSlice';
 import { capitalizeFirstLetter } from '../services/pokeApi';
 import { MyPokemon } from '../types/pokemon';
 import TypeBadge from '../components/TypeBadge';
@@ -120,12 +121,6 @@ const getPokeballImageUrl = (pokeball: string): string => {
 // Fix the pokeball colors type
 const pokeballColors = showdownTheme.pokeballColors as Record<string, { main: string }>;
 
-// Remove the duplicate showdownTheme object
-// Remove the duplicate getStatColor function
-// Remove the duplicate mapStatNameToProperty function
-// Remove the duplicate formatStatName function
-// Remove the duplicate capitalizeFirstLetter function
-
 const PokemonDetails = () => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
@@ -137,14 +132,6 @@ const PokemonDetails = () => {
   const [imageError, setImageError] = useState(false);
   const [showCopySnackbar, setShowCopySnackbar] = useState(false);
   const [moveData, setMoveData] = useState<Record<string, any>>({});
-
-  // Enhanced debugging logs
-  console.log('Debug URL info:', {
-    params: useParams(),
-    pathname: location.pathname,
-    fullUrl: window.location.href,
-    id
-  });
 
   const myCollection = useSelector((state: RootState) => state.pokemon.myCollection);
 
@@ -165,7 +152,7 @@ const PokemonDetails = () => {
   useEffect(() => {
     if (pokemon) {
       setEditedPokemon(pokemon);
-      setImageError(false); // Reset image error state when pokemon changes
+      setImageError(false);
     }
   }, [pokemon]);
 
@@ -239,7 +226,7 @@ const PokemonDetails = () => {
         console.error('Failed to copy text: ', err);
       });
   };
-
+  
   const handleEditClick = () => {
     if (pokemon) {
       const moves = [...pokemon.moves];
@@ -285,6 +272,12 @@ const PokemonDetails = () => {
   const handleImageError = () => {
     console.log('Poké Ball image failed to load');
     setImageError(true);
+  };
+
+  const handleToggleFavorite = () => {
+    if (pokemon) {
+      dispatch(toggleFavorite(pokemon.collectionId));
+    }
   };
 
   // Show loading state if we don't have the collection data yet
@@ -419,11 +412,34 @@ const PokemonDetails = () => {
 
   return (
     <Box sx={{ 
+      minHeight: '100%',
       bgcolor: showdownTheme.background,
-      minHeight: 'auto',
-      p: 1,
-      fontFamily: showdownTheme.fontFamily
+      p: { xs: 2, sm: 4 },
+      fontFamily: showdownTheme.fontFamily,
     }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+        <Typography 
+          variant="h4" 
+          component="h1" 
+          sx={{ 
+            fontWeight: 'bold',
+            color: showdownTheme.text,
+          }}
+        >
+          {pokemon?.nickname || capitalizeFirstLetter(pokemon?.name || '')}
+        </Typography>
+        <IconButton
+          onClick={handleToggleFavorite}
+          sx={{
+            color: pokemon?.favorite ? '#FFD700' : showdownTheme.text,
+            '&:hover': {
+              color: '#FFD700',
+            },
+          }}
+        >
+          {pokemon?.favorite ? <StarIcon /> : <StarBorderIcon />}
+        </IconButton>
+      </Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
         <Button
           startIcon={<ArrowBackIcon />}
@@ -1098,7 +1114,7 @@ const PokemonDetails = () => {
                         >
                           {pokemon.project || 'Other'}
                         </Typography>
-                      </Box>
+              </Box>
                     </Grid>
                     {pokemon.comments && (
                       <Grid item xs={12}>
@@ -1487,11 +1503,11 @@ const PokemonDetails = () => {
             sx={{ fontFamily: showdownTheme.fontFamily }}
           >
             Remove
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
-  );
-};
-
-export default PokemonDetails;
+    </Button>
+  </DialogActions>
+</Dialog>
+                     </Box>
+                   );
+                 };
+                 
+                 export default PokemonDetails;
