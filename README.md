@@ -23,7 +23,6 @@ PokéCollector is a comprehensive Pokémon collection management application bui
 - **Visual Representation**: Display Pokémon sprites and artwork
 - **Poké Ball Visualization**: Show which Poké Ball was used to catch each Pokémon
 - **Stat Management**: Comprehensive stat tracking and visualization
-- **Evolution Chains**: View evolution information for each Pokémon
 
 ## Technical Stack
 
@@ -34,69 +33,192 @@ PokéCollector is a comprehensive Pokémon collection management application bui
 - **API**: Local PokeAPI server for Pokémon data
 - **Routing**: React Router for navigation
 
-## Getting Started
+## Installation
 
-### Prerequisites
-- Node.js (v14 or higher)
-- npm or yarn
-- Local PokeAPI server running on port 3002 (optional, can be configured)
+### Development Setup
 
-### Installation
+1. **Prerequisites**
+   - Node.js (v20.x or later)
+   - npm (comes with Node.js)
+   - Git
 
-1. Clone the repository:
+2. **Clone the Repository**
+   ```bash
+   git clone <repository-url>
+   cd pokedex
    ```
-   git clone https://github.com/yourusername/pokecollector.git
-   cd pokecollector
-   ```
 
-2. Install dependencies:
-   ```
+3. **Install Dependencies**
+   ```bash
    npm install
    ```
 
-3. Start the development server:
+4. **Start Development Servers**
+   ```bash
+   # Start the backend server (in one terminal)
+   npm run pokeserver
+
+   # Start the development server (in another terminal)
+   npm run dev
    ```
-   npm start
+
+5. **Access the Application**
+   - Open your browser and navigate to `http://localhost:5173`
+   - The backend API will be available at `http://localhost:3001`
+
+### Raspberry Pi Setup
+
+1. **Initial OS Setup**
+   ```bash
+   # Update system
+   sudo apt update && sudo apt upgrade -y
+
+   # Install required packages
+   sudo apt install -y git curl build-essential
+
+   # Install Node.js (LTS version)
+   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+   sudo apt-get install -y nodejs
+
+   # Verify installations
+   node --version
+   npm --version
+   git --version
    ```
 
-4. The application will be available at `http://localhost:3000`
+2. **Application Setup**
+   ```bash
+   # Clone repository (replace USERNAME with your actual username)
+   cd /home/USERNAME
+   git clone <repository-url>
+   cd pokedex
 
-### Setting Up Local PokeAPI (Optional)
+   # Install dependencies
+   npm install
 
-For optimal performance, you can set up a local PokeAPI server:
+   # Build the application
+   npm run build
+   ```
 
-1. Clone the PokeAPI data repository
-2. Follow the setup instructions for the local server
-3. Ensure it's running on port 3002 (or update the configuration in the app)
+3. **Service Setup**
+   The project includes two service files in the root directory:
+   - `pokedex-server.service`
+   - `pokedex-frontend.service`
 
-## Usage Guide
+   Copy these files to the systemd directory:
+   ```bash
+   sudo cp pokedex-server.service /etc/systemd/system/
+   sudo cp pokedex-frontend.service /etc/systemd/system/
+   ```
 
-### Adding Pokémon to Your Collection
+4. **Start Services**
+   ```bash
+   # Reload systemd
+   sudo systemctl daemon-reload
 
-1. Navigate to the "All Pokémon" page
-2. Search or browse for the Pokémon you want to add
-3. Click "Add to Collection" and fill in the details
-4. Save to add the Pokémon to your personal collection
+   # Enable services to start on boot
+   sudo systemctl enable pokedex-server
+   sudo systemctl enable pokedex-frontend
 
-### Managing Your Collection
+   # Start services
+   sudo systemctl start pokedex-server
+   sudo systemctl start pokedex-frontend
 
-- **View Details**: Click on any Pokémon in your collection to view its complete details
-- **Edit**: Update information such as level, nature, EVs, and more
-- **Remove**: Delete Pokémon from your collection when needed
-- **Sort/Filter**: Organize your collection by various attributes
+   # Check status
+   sudo systemctl status pokedex-server
+   sudo systemctl status pokedex-frontend
+   ```
 
-### Slideshow Mode
+5. **Collection Setup**
+   The project includes a `collection-data` directory in the root folder. Your collection data should be placed here:
+   ```bash
+   # Copy your collection file to the collection-data directory
+   cp /path/to/your/collection.json collection-data/collection.json
 
-1. Navigate to the "Slideshow" page
-2. Adjust settings like duration and display options
-3. Start the slideshow to see your Pokémon displayed in random order
-4. Use controls to pause, skip, or restart the slideshow
+   # Make import script executable
+   chmod +x import-collection.sh
 
-### Data Management
+   # Import collection
+   ./import-collection.sh
+   ```
 
-- **Export Collection**: Back up your collection data to a JSON file
-- **Import Collection**: Restore your collection from a previously exported file
-- **Monitor Storage**: Keep track of your IndexedDB usage with the storage monitor
+6. **Access the Application**
+   - Open a browser and go to `http://localhost:3000` or `http://your-pi-ip:3000`
+   - The application should be running in production mode
+
+### Useful Commands
+
+**Development:**
+```bash
+# Start development server
+npm run dev
+
+# Start backend server
+npm run pokeserver
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+**Raspberry Pi:**
+```bash
+# View service logs
+sudo journalctl -u pokedex-server -f
+sudo journalctl -u pokedex-frontend -f
+
+# Restart services
+sudo systemctl restart pokedex-server
+sudo systemctl restart pokedex-frontend
+
+# Stop services
+sudo systemctl stop pokedex-server
+sudo systemctl stop pokedex-frontend
+```
+
+## Data Management
+
+### Collection Synchronization
+
+The application supports collection synchronization between devices:
+
+1. **Export Collection**
+   ```bash
+   # On your development machine
+   ./sync-collection.sh
+   ```
+
+2. **Import Collection**
+   ```bash
+   # On the Raspberry Pi
+   ./import-collection.sh
+   ```
+
+## Troubleshooting
+
+### Development Issues
+
+1. **Port Already in Use**
+   - Check if another process is using the port
+   - Kill the process or use a different port
+
+2. **Node.js Version Issues**
+   - Ensure you're using Node.js v20.x or later
+   - Use nvm to manage Node.js versions
+
+### Raspberry Pi Issues
+
+1. **Service Not Starting**
+   - Check service logs: `sudo journalctl -u pokedex-server -f`
+   - Verify file permissions
+   - Check Node.js installation
+
+2. **Performance Issues**
+   - Use production build instead of development server
+   - Monitor system resources with `htop`
+   - Consider using a swap file if memory is low
 
 ## Contributing
 

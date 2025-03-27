@@ -107,6 +107,12 @@ class MoveService {
     this.loadMoves();
     return this.moves.filter(move => move.category.toLowerCase() === category.toLowerCase());
   }
+
+  getMoveType(moveName: string): string | undefined {
+    this.loadMoves();
+    const move = this.getMoveByName(moveName);
+    return move?.type;
+  }
 }
 
 export const moveService = new MoveService(); 

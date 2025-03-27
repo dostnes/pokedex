@@ -1,0 +1,17 @@
+[Unit] 
+Description=Pokedex Backend Server 
+After=network.target 
+ 
+[Service] 
+Type=simple 
+User=admin 
+WorkingDirectory=/home/admin/pokedex 
+ExecStart=/usr/bin/npm run pokeserver 
+Restart=always 
+RestartSec=10 
+Environment=NODE_ENV=production 
+Environment=PORT=3002 
+Environment=DISPLAY=:0 
+ 
+[Install] 
+WantedBy=multi-user.target 

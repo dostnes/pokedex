@@ -16,6 +16,7 @@ import {
   Grid,
   Divider,
   Link,
+  Avatar,
 } from '@mui/material';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
@@ -36,6 +37,10 @@ import StarIcon from '@mui/icons-material/Star';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import SpeedIcon from '@mui/icons-material/Speed';
 import SchoolIcon from '@mui/icons-material/School';
+import CatchingPokemonIcon from '@mui/icons-material/CatchingPokemon';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import SportsBaseballIcon from '@mui/icons-material/SportsBaseball';
 import { RootState } from '../store/store';
 import { MyPokemon } from '../types/pokemon';
 import TypeBadge from './TypeBadge';
@@ -46,10 +51,54 @@ import { format } from 'date-fns';
 import MoveDetails from './MoveDetails';
 import { moveService } from '../services/moveService';
 
+// Map of Poké Ball names to their image filenames
+const pokeballMap: Record<string, string> = {
+  'Poke Ball': 'poke-ball',
+  'Great Ball': 'great-ball',
+  'Ultra Ball': 'ultra-ball',
+  'Master Ball': 'master-ball',
+  'Safari Ball': 'safari-ball',
+  'Level Ball': 'level-ball',
+  'Lure Ball': 'lure-ball',
+  'Moon Ball': 'moon-ball',
+  'Friend Ball': 'friend-ball',
+  'Love Ball': 'love-ball',
+  'Heavy Ball': 'heavy-ball',
+  'Fast Ball': 'fast-ball',
+  'Sport Ball': 'sport-ball',
+  'Premier Ball': 'premier-ball',
+  'Repeat Ball': 'repeat-ball',
+  'Timer Ball': 'timer-ball',
+  'Nest Ball': 'nest-ball',
+  'Net Ball': 'net-ball',
+  'Dive Ball': 'dive-ball',
+  'Luxury Ball': 'luxury-ball',
+  'Heal Ball': 'heal-ball',
+  'Quick Ball': 'quick-ball',
+  'Dusk Ball': 'dusk-ball',
+  'Cherish Ball': 'cherish-ball',
+  'Dream Ball': 'dream-ball',
+  'Beast Ball': 'beast-ball',
+};
+
+// Function to get the Poké Ball image URL from GitHub
+const getPokeballImageUrl = (name: string): string => {
+  const pokeballFileName = pokeballMap[name] || 'poke-ball'; // Default to Poke Ball if not found
+  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${pokeballFileName}.png`;
+};
+
+// Add type for Poké Ball names
+type PokeballName = keyof typeof showdownTheme.pokeballColors;
+
 interface PokemonSlideshowProps {
   interval?: number; // Time in milliseconds between slides
   fullscreen?: boolean; // Whether to show in fullscreen mode
 }
+
+// Add getStatColor function at the top level
+const getStatColor = (stat: string): string => {
+  return showdownTheme.statColors[stat as keyof typeof showdownTheme.statColors] || showdownTheme.secondaryText;
+};
 
 // Progress bar component
 const SlideshowProgress = React.memo(({ progress }: { progress: number }) => (
@@ -79,6 +128,7 @@ const PokemonCard = React.memo(({
 }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const imageRef = useRef<HTMLImageElement>(null);
+  const [pokeballImageError, setPokeballImageError] = useState(false);
 
   useEffect(() => {
     if (imageRef.current) {
@@ -96,204 +146,284 @@ const PokemonCard = React.memo(({
       <Box sx={{ 
         bgcolor: showdownTheme.background,
         minHeight: 'auto',
-        p: 1,
-        fontFamily: showdownTheme.fontFamily
+        p: 0.5,
+        fontFamily: showdownTheme.fontFamily,
+        maxWidth: '100vw',
+        overflow: 'hidden'
       }}>
-        <Grid container spacing={1}>
-          <Grid item xs={12} md={4}>
-            <Card sx={{ 
-              bgcolor: showdownTheme.cardBackground,
-              border: `1px solid ${showdownTheme.border}`,
-              boxShadow: 'none'
-            }}>
-              <CardContent sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      color: showdownTheme.secondaryText,
-                      fontFamily: showdownTheme.fontFamily,
-                      fontSize: '0.9rem',
-                      mb: 0.5
-                    }}
-                  >
-                    {formatPokedexNumber(pokemon.id ?? 0)}
-                    {isVariantForm(pokemon.id ?? 0) && (
-                      <Typography
-                        component="span"
-                        sx={{
-                          fontSize: '0.8rem',
-                          display: 'block',
-                          textAlign: 'center',
+        <Grid container spacing={0.5}>
+          {/* Left column: Sprite and Status */}
+          <Grid item xs={12} sm={4}>
+            <Grid container spacing={0.5}>
+              {/* Sprite Box */}
+              <Grid item xs={12}>
+                <Card sx={{ 
+                  bgcolor: showdownTheme.cardBackground,
+                  border: `1px solid ${showdownTheme.border}`,
+                  boxShadow: 'none',
+                  height: 'auto'
+                }}>
+                  <CardContent sx={{ p: 0.5 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.25 }}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
                           color: showdownTheme.secondaryText,
-                          fontFamily: showdownTheme.fontFamily
+                          fontFamily: showdownTheme.fontFamily,
+                          fontSize: '0.7rem',
+                          mb: 0.25
                         }}
                       >
-                        {getFormName(pokemon.name) || 'Form'}
+                        {formatPokedexNumber(pokemon.id ?? 0)}
+                        {isVariantForm(pokemon.id ?? 0) && (
+                          <Typography
+                            component="span"
+                            sx={{
+                              fontSize: '0.6rem',
+                              display: 'block',
+                              textAlign: 'center',
+                              color: showdownTheme.secondaryText,
+                              fontFamily: showdownTheme.fontFamily
+                            }}
+                          >
+                            {getFormName(pokemon.name) || 'Form'}
+                          </Typography>
+                        )}
                       </Typography>
-                    )}
-                  </Typography>
-                  <CardMedia
-                    component="img"
-                    ref={imageRef}
-                    alt={pokemon.name}
-                    sx={{
-                      height: 120,
-                      width: 120,
-                      objectFit: 'contain',
-                      imageRendering: 'pixelated',
-                      bgcolor: 'transparent'
-                    }}
-                    onLoad={() => setImageLoaded(true)}
-                  />
-                  <Typography 
-                    variant="h6" 
-                    sx={{ 
-                      fontWeight: 'bold',
-                      fontFamily: showdownTheme.fontFamily,
-                      fontSize: '1.1rem'
-                    }}
-                  >
-                    {pokemon.nickname || capitalizeFirstLetter(pokemon.name)}
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
-                    {pokemon.types.map((type: { type: { name: string } }, index: number) => (
-                      <TypeBadge
-                        key={`${pokemon.collectionId}-type-${type.type.name}-${index}`}
-                        type={type.type.name}
+                      <CardMedia
+                        component="img"
+                        ref={imageRef}
+                        alt={pokemon.name}
+                        sx={{
+                          height: 85,
+                          width: 85,
+                          objectFit: 'contain',
+                          imageRendering: 'pixelated',
+                          bgcolor: 'transparent'
+                        }}
+                        onLoad={() => setImageLoaded(true)}
                       />
-                    ))}
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
+                      <Typography 
+                        variant="h6" 
+                        sx={{ 
+                          fontWeight: 'bold',
+                          fontFamily: showdownTheme.fontFamily,
+                          fontSize: '0.8rem'
+                        }}
+                      >
+                        {pokemon.nickname || capitalizeFirstLetter(pokemon.name)}
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 0.25, flexWrap: 'wrap', justifyContent: 'center' }}>
+                        {pokemon.types.map((type: { type: { name: string } }, index: number) => (
+                          <TypeBadge
+                            key={`${pokemon.collectionId}-type-${type.type.name}-${index}`}
+                            type={type.type.name}
+                            size="small"
+                          />
+                        ))}
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
 
-            {/* Status Indicators Box */}
-            <Card sx={{ 
-              bgcolor: showdownTheme.cardBackground,
-              border: `1px solid ${showdownTheme.border}`,
-              boxShadow: 'none',
-              mt: 1
-            }}>
-              <CardContent sx={{ p: 1.5 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {Object.values(pokemon.ivs).every(iv => iv === 31) && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <EmojiEventsIcon sx={{ color: '#FFD700', fontSize: '1.2rem' }} />
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          color: '#FFD700',
-                          fontFamily: showdownTheme.fontFamily,
-                          fontSize: '0.9rem',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        Perfect IVs
-                      </Typography>
+              {/* Status Indicators Box */}
+              <Grid item xs={12}>
+                <Card sx={{ 
+                  bgcolor: showdownTheme.cardBackground,
+                  border: `1px solid ${showdownTheme.border}`,
+                  boxShadow: 'none',
+                  height: 'auto'
+                }}>
+                  <CardContent sx={{ p: 0.5 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                      {Object.values(pokemon.ivs).every(iv => iv === 31) && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                          <EmojiEventsIcon sx={{ color: '#FFD700', fontSize: '0.8rem' }} />
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: '#FFD700',
+                              fontFamily: showdownTheme.fontFamily,
+                              fontSize: '0.65rem',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            Perfect IVs
+                          </Typography>
+                        </Box>
+                      )}
+                      {pokemon.abilities?.find(a => a.ability.name === pokemon.ability)?.is_hidden && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                          <AutoFixHighIcon sx={{ color: '#9C27B0', fontSize: '0.8rem' }} />
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: '#9C27B0',
+                              fontFamily: showdownTheme.fontFamily,
+                              fontSize: '0.65rem',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            Hidden Ability
+                          </Typography>
+                        </Box>
+                      )}
+                      {pokemon.level === 100 && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                          <AutoAwesomeIcon sx={{ color: '#2196F3', fontSize: '0.8rem' }} />
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: '#2196F3',
+                              fontFamily: showdownTheme.fontFamily,
+                              fontSize: '0.65rem',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            Level 100
+                          </Typography>
+                        </Box>
+                      )}
+                      {pokemon.shiny && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                          <StarIcon sx={{ color: '#FFD700', fontSize: '0.8rem' }} />
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: '#FFD700',
+                              fontFamily: showdownTheme.fontFamily,
+                              fontSize: '0.65rem',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            Shiny
+                          </Typography>
+                        </Box>
+                      )}
+                      {Object.values(pokemon.evs).every(ev => ev === 252) && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                          <SpeedIcon sx={{ color: '#4CAF50', fontSize: '0.8rem' }} />
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: '#4CAF50',
+                              fontFamily: showdownTheme.fontFamily,
+                              fontSize: '0.65rem',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            Max EVs
+                          </Typography>
+                        </Box>
+                      )}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, mt: 0.25 }}>
+                        <Link 
+                          href={`https://www.smogon.com/dex/sv/pokemon/${pokemon.name.toLowerCase()}/`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          sx={{ 
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 0.25,
+                            textDecoration: 'none',
+                            color: showdownTheme.accent,
+                            '&:hover': {
+                              color: showdownTheme.header
+                            }
+                          }}
+                        >
+                          <SchoolIcon sx={{ fontSize: '0.8rem' }} />
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              fontFamily: showdownTheme.fontFamily,
+                              fontSize: '0.65rem',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            Smogon Strategy
+                          </Typography>
+                        </Link>
+                      </Box>
                     </Box>
-                  )}
-                  {pokemon.abilities?.find(a => a.ability.name === pokemon.ability)?.is_hidden && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <AutoFixHighIcon sx={{ color: '#9C27B0', fontSize: '1.2rem' }} />
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          color: '#9C27B0',
-                          fontFamily: showdownTheme.fontFamily,
-                          fontSize: '0.9rem',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        Hidden Ability
-                      </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Additional Details Box */}
+              <Grid item xs={12}>
+                <Card sx={{ 
+                  bgcolor: showdownTheme.cardBackground,
+                  border: `1px solid ${showdownTheme.border}`,
+                  boxShadow: 'none',
+                  height: 'auto'
+                }}>
+                  <CardContent sx={{ p: 0.5 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                        <LocationOnIcon sx={{ color: showdownTheme.secondaryText, fontSize: '0.8rem' }} />
+                        <Typography 
+                          variant="body2"
+                          sx={{ 
+                            fontFamily: showdownTheme.fontFamily,
+                            fontSize: '0.65rem',
+                            color: showdownTheme.text
+                          }}
+                        >
+                          {pokemon.location || 'Unknown Location'}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                        <VideogameAssetIcon sx={{ color: showdownTheme.secondaryText, fontSize: '0.8rem' }} />
+                        <Typography 
+                          variant="body2"
+                          sx={{ 
+                            fontFamily: showdownTheme.fontFamily,
+                            fontSize: '0.65rem',
+                            color: showdownTheme.text
+                          }}
+                        >
+                          {pokemon.caughtFrom || 'Main Series'}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                        <CalendarMonthIcon sx={{ color: showdownTheme.secondaryText, fontSize: '0.8rem' }} />
+                        <Typography 
+                          variant="body2"
+                          sx={{ 
+                            fontFamily: showdownTheme.fontFamily,
+                            fontSize: '0.65rem',
+                            color: showdownTheme.text
+                          }}
+                        >
+                          {formattedCaughtDate}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                        <EmojiEventsIcon sx={{ color: showdownTheme.secondaryText, fontSize: '0.8rem' }} />
+                        <Typography 
+                          variant="body2"
+                          sx={{ 
+                            fontFamily: showdownTheme.fontFamily,
+                            fontSize: '0.65rem',
+                            color: showdownTheme.text
+                          }}
+                        >
+                          {pokemon.project || 'Other'}
+                        </Typography>
+                      </Box>
                     </Box>
-                  )}
-                  {pokemon.level === 100 && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <AutoAwesomeIcon sx={{ color: '#2196F3', fontSize: '1.2rem' }} />
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          color: '#2196F3',
-                          fontFamily: showdownTheme.fontFamily,
-                          fontSize: '0.9rem',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        Level 100
-                      </Typography>
-                    </Box>
-                  )}
-                  {pokemon.shiny && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <StarIcon sx={{ color: '#FFD700', fontSize: '1.2rem' }} />
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          color: '#FFD700',
-                          fontFamily: showdownTheme.fontFamily,
-                          fontSize: '0.9rem',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        Shiny
-                      </Typography>
-                    </Box>
-                  )}
-                  {Object.values(pokemon.evs).every(ev => ev === 252) && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <SpeedIcon sx={{ color: '#4CAF50', fontSize: '1.2rem' }} />
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          color: '#4CAF50',
-                          fontFamily: showdownTheme.fontFamily,
-                          fontSize: '0.9rem',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        Max EVs
-                      </Typography>
-                    </Box>
-                  )}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                    <Link 
-                      href={`https://www.smogon.com/dex/sv/pokemon/${pokemon.name.toLowerCase()}/`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      sx={{ 
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        textDecoration: 'none',
-                        color: showdownTheme.accent,
-                        '&:hover': {
-                          color: showdownTheme.header
-                        }
-                      }}
-                    >
-                      <SchoolIcon sx={{ fontSize: '1.2rem' }} />
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          fontFamily: showdownTheme.fontFamily,
-                          fontSize: '0.9rem',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        Smogon Strategy
-                      </Typography>
-                    </Link>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
           </Grid>
 
-          <Grid item xs={12} md={8}>
-            <Grid container spacing={1}>
-              {/* First row: Details and Moves side by side */}
+          {/* Right column: Details and Stats */}
+          <Grid item xs={12} sm={8}>
+            <Grid container spacing={0.5}>
+              {/* Details and Moves */}
               <Grid item xs={12} sm={6}>
                 <Card sx={{ 
                   bgcolor: showdownTheme.cardBackground,
@@ -301,407 +431,415 @@ const PokemonCard = React.memo(({
                   boxShadow: 'none',
                   height: '100%'
                 }}>
-                  <CardContent sx={{ p: 1.5 }}>
+                  <CardContent sx={{ p: 0.75 }}>
                     <Typography 
                       variant="h6" 
                       sx={{ 
                         color: showdownTheme.header,
                         fontFamily: showdownTheme.fontFamily,
-                        fontSize: '1rem',
+                        fontSize: '0.8rem',
                         fontWeight: 'bold',
-                        mb: 1
+                        mb: 0.5
                       }}
                     >
                       Details
                     </Typography>
-                    <Grid container spacing={1}>
-                      <Grid item xs={12}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                          <Typography 
-                            variant="body2" 
-                            sx={{ 
-                              color: showdownTheme.secondaryText,
-                              fontFamily: showdownTheme.fontFamily,
-                              fontSize: '0.8rem'
-                            }}
-                          >
-                            Level: {pokemon.level}
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={12}>
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            color: showdownTheme.secondaryText,
-                            fontFamily: showdownTheme.fontFamily,
-                            fontSize: '0.8rem',
-                            mb: 0.5
-                          }}
-                        >
-                          Nature: {pokemon.nature}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                          <Typography 
-                            variant="body2" 
-                            sx={{ 
-                              color: showdownTheme.secondaryText,
-                              fontFamily: showdownTheme.fontFamily,
-                              fontSize: '0.8rem'
-                            }}
-                          >
-                            Ability: {capitalizeFirstLetter(pokemon.ability || '')}
-                          </Typography>
-                          {pokemon.abilities?.find(a => a.ability.name === pokemon.ability)?.is_hidden && (
-                            <Typography 
-                              component="span" 
-                              sx={{ 
-                                color: showdownTheme.accent,
-                                fontSize: '0.7rem',
-                                fontStyle: 'italic'
-                              }}
-                            >
-                              (Hidden)
-                            </Typography>
-                          )}
-                        </Box>
-                      </Grid>
-                    </Grid>
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <Card sx={{ 
-                  bgcolor: showdownTheme.cardBackground,
-                  border: `1px solid ${showdownTheme.border}`,
-                  boxShadow: 'none',
-                  height: '100%'
-                }}>
-                  <CardContent sx={{ p: 1.5 }}>
-                    <Typography 
-                      variant="h6" 
-                      sx={{ 
-                        color: showdownTheme.header,
-                        fontFamily: showdownTheme.fontFamily,
-                        fontSize: '1rem',
-                        fontWeight: 'bold',
-                        mb: 1
-                      }}
-                    >
-                      Moves
-                    </Typography>
-                    <Grid container spacing={1}>
-                      {pokemon.moves?.map((move, index) => {
-                        const moveData = moveService.getMoveByName(move);
-                        return (
-                          <Grid item xs={12} key={index}>
-                            {move ? (
-                              <MoveDetails
-                                move={{
-                                  name: move,
-                                  type: moveData?.type || 'Normal'
-                                }}
-                              />
-                            ) : (
-                              <Typography 
-                                variant="body2"
-                                sx={{ 
-                                  fontFamily: showdownTheme.fontFamily,
-                                  fontSize: '0.8rem',
-                                  color: showdownTheme.secondaryText,
-                                  fontStyle: 'italic',
-                                }}
-                              >
-                                No move
-                              </Typography>
-                            )}
-                          </Grid>
-                        );
-                      })}
-                    </Grid>
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              {/* Spread section with combined stats */}
-              <Grid item xs={12} sm={6}>
-                <Card sx={{ 
-                  bgcolor: showdownTheme.cardBackground,
-                  border: `1px solid ${showdownTheme.border}`,
-                  boxShadow: 'none',
-                  height: '100%'
-                }}>
-                  <CardContent sx={{ p: 1.5 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography 
-                        variant="h6" 
-                        sx={{ 
-                          color: showdownTheme.header,
-                          fontFamily: showdownTheme.fontFamily,
-                          fontSize: '1rem',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        Spread
-                      </Typography>
-                    </Box>
                     <Grid container spacing={0.5}>
-                      {pokemon.stats?.map((stat) => {
-                        const statName = stat.stat.name;
-                        const baseStat = Number(pokemon.stats.find(s => s.stat.name === statName)?.base_stat ?? 0);
-                        const propertyName = mapStatNameToProperty(statName) as keyof typeof pokemon.evs;
-                        const ev = Number(pokemon.evs[propertyName] ?? pokemon.evs[statName as keyof typeof pokemon.evs] ?? 0);
-                        const iv = Number(pokemon.ivs[propertyName] ?? pokemon.ivs[statName as keyof typeof pokemon.ivs] ?? 31);
-                        const level = pokemon.level ?? 100;
-                        
-                        const total = calculateTotalStat(baseStat, ev, iv, level, pokemon.nature, statName);
-                        const natureMultiplier = getNatureMultiplier(pokemon.nature, statName);
-
-                        return (
-                          <Grid item xs={12} key={statName}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography 
-                                variant="body2" 
-                                sx={{ 
-                                  width: 60,
-                                  fontFamily: showdownTheme.fontFamily,
-                                  fontSize: '0.8rem',
-                                  color: natureMultiplier === 1.1 ? '#4CAF50' : 
-                                         natureMultiplier === 0.9 ? '#F44336' : 
-                                         showdownTheme.text
-                                }}
-                              >
-                                {statName === 'hp' ? 'HP' :
-                                 statName === 'attack' ? 'Attack' :
-                                 statName === 'defense' ? 'Defense' :
-                                 statName === 'special-attack' ? 'Sp. Atk.' :
-                                 statName === 'special-defense' ? 'Sp. Def.' :
-                                 statName === 'speed' ? 'Speed' : statName}
-                              </Typography>
-                              <Typography 
-                                variant="body2" 
-                                sx={{ 
-                                  width: 30,
-                                  textAlign: 'right',
-                                  fontFamily: showdownTheme.fontFamily,
-                                  fontSize: '0.8rem'
-                                }}
-                              >
-                                {baseStat}
-                              </Typography>
-                              <Box sx={{ flexGrow: 1 }}>
-                                <LinearProgress 
-                                  variant="determinate" 
-                                  value={(() => {
-                                    const effectiveStat = baseStat + (ev / 4);
-                                    return (effectiveStat / 255) * 100;
-                                  })()}
-                                  sx={{ 
-                                    height: 6,
-                                    borderRadius: 3,
-                                    bgcolor: '#E0E0E0',
-                                    '& .MuiLinearProgress-bar': {
-                                      bgcolor: (() => {
-                                        const effectiveStat = baseStat + (ev / 4);
-                                        
-                                        if (statName === 'hp') {
-                                          if (effectiveStat >= 100) return '#00C853';
-                                          if (effectiveStat >= 85) return '#64DD17';
-                                          if (effectiveStat >= 70) return '#FFD600';
-                                          if (effectiveStat >= 55) return '#FFA000';
-                                          if (effectiveStat >= 40) return '#FF6D00';
-                                          return '#F44336';
-                                        } else if (statName === 'attack' || statName === 'defense') {
-                                          if (effectiveStat >= 90) return '#00C853';
-                                          if (effectiveStat >= 75) return '#64DD17';
-                                          if (effectiveStat >= 60) return '#FFD600';
-                                          if (effectiveStat >= 45) return '#FFA000';
-                                          if (effectiveStat >= 30) return '#FF6D00';
-                                          return '#F44336';
-                                        } else if (statName === 'special-attack' || statName === 'special-defense') {
-                                          if (effectiveStat >= 90) return '#00C853';
-                                          if (effectiveStat >= 75) return '#64DD17';
-                                          if (effectiveStat >= 60) return '#FFD600';
-                                          if (effectiveStat >= 45) return '#FFA000';
-                                          if (effectiveStat >= 30) return '#FF6D00';
-                                          return '#F44336';
-                                        } else if (statName === 'speed') {
-                                          if (effectiveStat >= 85) return '#00C853';
-                                          if (effectiveStat >= 70) return '#64DD17';
-                                          if (effectiveStat >= 55) return '#FFD600';
-                                          if (effectiveStat >= 40) return '#FFA000';
-                                          if (effectiveStat >= 25) return '#FF6D00';
-                                          return '#F44336';
-                                        }
-                                        return '#F44336';
-                                      })()
-                                    }
-                                  }}
-                                />
-                              </Box>
-                              {ev > 0 && (
-                                <Typography 
-                                  variant="body2" 
-                                  sx={{ 
-                                    minWidth: 45,
-                                    textAlign: 'right',
-                                    fontFamily: showdownTheme.fontFamily,
-                                    fontSize: '0.8rem',
-                                    color: showdownTheme.secondaryText
-                                  }}
-                                >
-                                  {ev} EV
-                                </Typography>
-                              )}
-                              <Typography 
-                                variant="body2" 
-                                sx={{ 
-                                  width: 40,
-                                  textAlign: 'right',
-                                  fontFamily: showdownTheme.fontFamily,
-                                  fontSize: '0.8rem',
-                                  fontWeight: 'bold'
-                                }}
-                              >
-                                {total}
-                              </Typography>
-                              <Typography 
-                                variant="body2" 
-                                sx={{ 
-                                  width: 40,
-                                  textAlign: 'right',
-                                  fontFamily: showdownTheme.fontFamily,
-                                  fontSize: '0.8rem',
-                                  color: iv < 31 ? '#F44336' : showdownTheme.secondaryText
-                                }}
-                              >
-                                {iv}
-                              </Typography>
-                            </Box>
-                          </Grid>
-                        );
-                      })}
                       <Grid item xs={12}>
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-                          <Typography 
-                            variant="body2" 
-                            sx={{ 
-                              color: showdownTheme.secondaryText,
-                              fontFamily: showdownTheme.fontFamily,
-                              fontSize: '0.8rem'
-                            }}
-                          >
-                            {pokemon.nature} Nature
-                          </Typography>
-                        </Box>
-                      </Grid>
-                    </Grid>
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              {/* Additional Details Card */}
-              <Grid item xs={12} sm={6}>
-                <Card sx={{ 
-                  bgcolor: showdownTheme.cardBackground,
-                  border: `1px solid ${showdownTheme.border}`,
-                  boxShadow: 'none',
-                  height: '100%'
-                }}>
-                  <CardContent sx={{ p: 1.5 }}>
-                    <Typography 
-                      variant="h6" 
-                      sx={{ 
-                        color: showdownTheme.header,
-                        fontFamily: showdownTheme.fontFamily,
-                        fontSize: '1rem',
-                        fontWeight: 'bold',
-                        mb: 1
-                      }}
-                    >
-                      Additional Details
-                    </Typography>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <LocationOnIcon sx={{ color: showdownTheme.secondaryText, fontSize: '1rem' }} />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <CatchingPokemonIcon sx={{ color: showdownTheme.accent, fontSize: '0.9rem' }} />
                           <Typography 
                             variant="body2"
                             sx={{ 
                               fontFamily: showdownTheme.fontFamily,
-                              fontSize: '0.8rem',
+                              fontSize: '0.7rem',
                               color: showdownTheme.text
                             }}
                           >
-                            {pokemon.location || 'Unknown Location'}
+                            Level {pokemon.level}
                           </Typography>
                         </Box>
                       </Grid>
                       <Grid item xs={12}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <VideogameAssetIcon sx={{ color: showdownTheme.secondaryText, fontSize: '1rem' }} />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <AutoFixHighIcon sx={{ color: showdownTheme.accent, fontSize: '0.9rem' }} />
                           <Typography 
                             variant="body2"
                             sx={{ 
                               fontFamily: showdownTheme.fontFamily,
-                              fontSize: '0.8rem',
+                              fontSize: '0.7rem',
                               color: showdownTheme.text
                             }}
                           >
-                            {pokemon.caughtFrom || 'Main Series'}
+                            {pokemon.ability ? capitalizeFirstLetter(pokemon.ability) : 'No Ability'}
                           </Typography>
                         </Box>
                       </Grid>
                       <Grid item xs={12}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <CalendarMonthIcon sx={{ color: showdownTheme.secondaryText, fontSize: '1rem' }} />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <NatureIcon sx={{ color: showdownTheme.accent, fontSize: '0.9rem' }} />
                           <Typography 
                             variant="body2"
                             sx={{ 
                               fontFamily: showdownTheme.fontFamily,
-                              fontSize: '0.8rem',
+                              fontSize: '0.7rem',
                               color: showdownTheme.text
                             }}
                           >
-                            {formattedCaughtDate}
+                            {capitalizeFirstLetter(pokemon.nature)} Nature
                           </Typography>
                         </Box>
                       </Grid>
                       <Grid item xs={12}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <EmojiEventsIcon sx={{ color: showdownTheme.secondaryText, fontSize: '1rem' }} />
-                          <Typography 
-                            variant="body2"
-                            sx={{ 
-                              fontFamily: showdownTheme.fontFamily,
-                              fontSize: '0.8rem',
-                              color: showdownTheme.text
-                            }}
-                          >
-                            {pokemon.project || 'Other'}
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      {pokemon.comments && (
-                        <Grid item xs={12}>
-                          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                            <CommentIcon sx={{ color: showdownTheme.secondaryText, fontSize: '1rem', mt: 0.5 }} />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <InventoryIcon sx={{ color: showdownTheme.accent, fontSize: '0.9rem' }} />
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <Typography 
                               variant="body2"
                               sx={{ 
                                 fontFamily: showdownTheme.fontFamily,
-                                fontSize: '0.8rem',
+                                fontSize: '0.7rem',
                                 color: showdownTheme.text
                               }}
                             >
-                              {pokemon.comments}
+                              Caught with:
                             </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              {!pokeballImageError ? (
+                                <Avatar 
+                                  src={getPokeballImageUrl(pokemon.pokeball)} 
+                                  alt={pokemon.pokeball}
+                                  sx={{ width: 16, height: 16 }}
+                                  onError={() => setPokeballImageError(true)}
+                                />
+                              ) : (
+                                <SportsBaseballIcon 
+                                  sx={{ 
+                                    fontSize: '1rem', 
+                                    color: showdownTheme.pokeballColors[pokemon.pokeball as PokeballName]?.main || 
+                                           showdownTheme.pokeballColors['Poke Ball'].main 
+                                  }} 
+                                />
+                              )}
+                              <Typography 
+                                variant="body2"
+                                sx={{ 
+                                  fontFamily: showdownTheme.fontFamily,
+                                  fontSize: '0.7rem',
+                                  color: showdownTheme.text
+                                }}
+                              >
+                                {capitalizeFirstLetter(pokemon.pokeball)}
+                              </Typography>
+                            </Box>
                           </Box>
-                        </Grid>
-                      )}
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <Card sx={{ 
+                  bgcolor: showdownTheme.cardBackground,
+                  border: `1px solid ${showdownTheme.border}`,
+                  boxShadow: 'none',
+                  height: '100%'
+                }}>
+                  <CardContent sx={{ p: 0.75 }}>
+                    <Typography 
+                      variant="h6" 
+                      sx={{ 
+                        color: showdownTheme.header,
+                        fontFamily: showdownTheme.fontFamily,
+                        fontSize: '0.8rem',
+                        fontWeight: 'bold',
+                        mb: 0.5
+                      }}
+                    >
+                      Moves
+                    </Typography>
+                    <Grid container spacing={0.5}>
+                      {pokemon.moves?.map((move) => {
+                        const moveType = moveService.getMoveType(move);
+                        return (
+                          <Grid item xs={12} key={move}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="body2" sx={{ flex: 1 }}>
+                                {move}
+                              </Typography>
+                              {moveType && <TypeBadge type={moveType} size="small" />}
+                            </Box>
+                          </Grid>
+                        );
+                      })}
+                    </Grid>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Comments Box */}
+              {pokemon.comments && (
+                <Grid item xs={12}>
+                  <Card sx={{ 
+                    bgcolor: showdownTheme.cardBackground,
+                    border: `1px solid ${showdownTheme.border}`,
+                    boxShadow: 'none',
+                    height: 'auto'
+                  }}>
+                    <CardContent sx={{ p: 0.5 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                          <ChatBubbleOutlineIcon sx={{ color: showdownTheme.secondaryText, fontSize: '0.8rem' }} />
+                          <Typography 
+                            variant="body2"
+                            sx={{ 
+                              fontFamily: showdownTheme.fontFamily,
+                              fontSize: '0.65rem',
+                              color: showdownTheme.text
+                            }}
+                          >
+                            {pokemon.comments}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              )}
+
+              {/* Stats */}
+              <Grid item xs={12}>
+                <Card sx={{ 
+                  bgcolor: showdownTheme.cardBackground,
+                  border: `1px solid ${showdownTheme.border}`,
+                  boxShadow: 'none',
+                  height: '100%'
+                }}>
+                  <CardContent sx={{ p: 0.75 }}>
+                    <Typography 
+                      variant="h6" 
+                      sx={{ 
+                        color: showdownTheme.header,
+                        fontFamily: showdownTheme.fontFamily,
+                        fontSize: '0.8rem',
+                        fontWeight: 'bold',
+                        mb: 0.5
+                      }}
+                    >
+                      Stats
+                    </Typography>
+                    <Grid container spacing={0.5}>
+                      {/* Stats Headers */}
+                      <Grid item xs={12}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                          <Typography 
+                            variant="body2"
+                            sx={{ 
+                              fontFamily: showdownTheme.fontFamily,
+                              fontSize: '0.7rem',
+                              color: showdownTheme.text,
+                              minWidth: '40px'
+                            }}
+                          >
+                            Stat
+                          </Typography>
+                          <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Box sx={{ flex: 1 }} />
+                            <Box sx={{ display: 'flex', gap: 0.5, minWidth: '100px', justifyContent: 'flex-end' }}>
+                              <Typography 
+                                variant="body2"
+                                sx={{ 
+                                  fontFamily: showdownTheme.fontFamily,
+                                  fontSize: '0.7rem',
+                                  color: showdownTheme.text,
+                                  minWidth: '30px',
+                                  textAlign: 'right'
+                                }}
+                              >
+                                Base
+                              </Typography>
+                              <Typography 
+                                variant="body2"
+                                sx={{ 
+                                  fontFamily: showdownTheme.fontFamily,
+                                  fontSize: '0.7rem',
+                                  color: '#4CAF50',
+                                  minWidth: '30px',
+                                  textAlign: 'right'
+                                }}
+                              >
+                                EV
+                              </Typography>
+                              <Typography 
+                                variant="body2"
+                                sx={{ 
+                                  fontFamily: showdownTheme.fontFamily,
+                                  fontSize: '0.7rem',
+                                  color: '#FFD700',
+                                  minWidth: '30px',
+                                  textAlign: 'right'
+                                }}
+                              >
+                                IV
+                              </Typography>
+                              <Typography 
+                                variant="body2"
+                                sx={{ 
+                                  fontFamily: showdownTheme.fontFamily,
+                                  fontSize: '0.7rem',
+                                  color: showdownTheme.text,
+                                  minWidth: '30px',
+                                  textAlign: 'right'
+                                }}
+                              >
+                                Total
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </Box>
+                      </Grid>
+                      {pokemon.stats?.map((stat) => {
+                        const statName = stat.stat.name;
+                        const baseStat = Number(pokemon.stats.find(s => s.stat.name === statName)?.base_stat ?? 0);
+                        const propertyName = mapStatNameToProperty(statName) as keyof typeof pokemon.evs;
+                        
+                        // Get EV using the same logic as PokemonDetails
+                        const ev = Number(pokemon.evs[propertyName] ?? pokemon.evs[statName as keyof typeof pokemon.evs] ?? 0);
+                        
+                        // Get IV using the same logic as PokemonDetails
+                        const iv = Number(pokemon.ivs[propertyName] ?? pokemon.ivs[statName as keyof typeof pokemon.ivs] ?? 31);
+                        
+                        const level = pokemon.level ?? 100;
+                        
+                        const total = calculateTotalStat(baseStat, ev, iv, level, pokemon.nature, statName);
+                        const natureMultiplier = getNatureMultiplier(pokemon.nature, statName);
+                        
+                        return (
+                          <Grid item xs={12} key={`${pokemon.collectionId}-stat-${statName}`}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <Typography 
+                                variant="body2"
+                                sx={{ 
+                                  fontFamily: showdownTheme.fontFamily,
+                                  fontSize: '0.7rem',
+                                  color: showdownTheme.text,
+                                  minWidth: '40px'
+                                }}
+                              >
+                                {statName === 'hp' ? 'HP' :
+                                 statName === 'attack' ? 'Atk' :
+                                 statName === 'defense' ? 'Def' :
+                                 statName === 'special-attack' ? 'SpA' :
+                                 statName === 'special-defense' ? 'SpD' :
+                                 statName === 'speed' ? 'Spe' : statName}
+                              </Typography>
+                              <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Box sx={{ 
+                                  flex: 1, 
+                                  height: 4, 
+                                  bgcolor: showdownTheme.border,
+                                  borderRadius: 1,
+                                  overflow: 'hidden'
+                                }}>
+                                  <Box sx={{ 
+                                    width: `${(baseStat / 255) * 100}%`,
+                                    height: '100%',
+                                    bgcolor: (() => {
+                                      // Calculate the effective stat value (base + EVs)
+                                      const effectiveStat = baseStat + (ev / 4);
+                                      
+                                      // Different thresholds for different stat types
+                                      if (statName === 'hp') {
+                                        if (effectiveStat >= 100) return '#00C853';      // Green for very high HP
+                                        if (effectiveStat >= 85) return '#64DD17';       // Light green for high HP
+                                        if (effectiveStat >= 70) return '#FFD600';       // Yellow for good HP
+                                        if (effectiveStat >= 55) return '#FFA000';       // Orange for average HP
+                                        if (effectiveStat >= 40) return '#FF6D00';       // Dark orange for below average HP
+                                        return '#F44336';                                // Red for low HP
+                                      } else if (statName === 'attack' || statName === 'defense') {
+                                        if (effectiveStat >= 90) return '#00C853';       // Green for very high Atk/Def
+                                        if (effectiveStat >= 75) return '#64DD17';       // Light green for high Atk/Def
+                                        if (effectiveStat >= 60) return '#FFD600';       // Yellow for good Atk/Def
+                                        if (effectiveStat >= 45) return '#FFA000';       // Orange for average Atk/Def
+                                        if (effectiveStat >= 30) return '#FF6D00';       // Dark orange for below average Atk/Def
+                                        return '#F44336';                                // Red for low Atk/Def
+                                      } else if (statName === 'special-attack' || statName === 'special-defense') {
+                                        if (effectiveStat >= 90) return '#00C853';       // Green for very high SpA/SpD
+                                        if (effectiveStat >= 75) return '#64DD17';       // Light green for high SpA/SpD
+                                        if (effectiveStat >= 60) return '#FFD600';       // Yellow for good SpA/SpD
+                                        if (effectiveStat >= 45) return '#FFA000';       // Orange for average SpA/SpD
+                                        if (effectiveStat >= 30) return '#FF6D00';       // Dark orange for below average SpA/SpD
+                                        return '#F44336';                                // Red for low SpA/SpD
+                                      } else if (statName === 'speed') {
+                                        if (effectiveStat >= 85) return '#00C853';       // Green for very high Speed
+                                        if (effectiveStat >= 70) return '#64DD17';       // Light green for high Speed
+                                        if (effectiveStat >= 55) return '#FFD600';       // Yellow for good Speed
+                                        if (effectiveStat >= 40) return '#FFA000';       // Orange for average Speed
+                                        if (effectiveStat >= 25) return '#FF6D00';       // Dark orange for below average Speed
+                                        return '#F44336';                                // Red for low Speed
+                                      }
+                                      return '#F44336';                                  // Default to red for unknown stats
+                                    })(),
+                                    transition: 'width 0.3s ease-in-out'
+                                  }} />
+                                </Box>
+                                <Box sx={{ display: 'flex', gap: 0.5, minWidth: '100px', justifyContent: 'flex-end' }}>
+                                  <Typography 
+                                    variant="body2"
+                                    sx={{ 
+                                      fontFamily: showdownTheme.fontFamily,
+                                      fontSize: '0.7rem',
+                                      color: showdownTheme.text,
+                                      minWidth: '30px',
+                                      textAlign: 'right'
+                                    }}
+                                  >
+                                    {baseStat}
+                                  </Typography>
+                                  <Typography 
+                                    variant="body2"
+                                    sx={{ 
+                                      fontFamily: showdownTheme.fontFamily,
+                                      fontSize: '0.7rem',
+                                      color: ev ? '#4CAF50' : showdownTheme.text,
+                                      minWidth: '30px',
+                                      textAlign: 'right'
+                                    }}
+                                  >
+                                    {ev}
+                                  </Typography>
+                                  <Typography 
+                                    variant="body2"
+                                    sx={{ 
+                                      fontFamily: showdownTheme.fontFamily,
+                                      fontSize: '0.7rem',
+                                      color: iv === 31 ? '#FFD700' : showdownTheme.text,
+                                      minWidth: '30px',
+                                      textAlign: 'right'
+                                    }}
+                                  >
+                                    {iv}
+                                  </Typography>
+                                  <Typography 
+                                    variant="body2"
+                                    sx={{ 
+                                      fontFamily: showdownTheme.fontFamily,
+                                      fontSize: '0.7rem',
+                                      color: natureMultiplier > 1 ? '#FF5959' : natureMultiplier < 1 ? '#4CAF50' : showdownTheme.text,
+                                      minWidth: '30px',
+                                      textAlign: 'right'
+                                    }}
+                                  >
+                                    {total}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            </Box>
+                          </Grid>
+                        );
+                      })}
                     </Grid>
                   </CardContent>
                 </Card>
